@@ -28,6 +28,8 @@ func Execute(cmd datatypes.Command) string {
 		handler = Exists
 	case "FLUSHALL":
 		handler = FlushAll
+	case "TTL":
+		handler = TTL
 	default:
 		return resp.EncodeError("unknown command")
 	}

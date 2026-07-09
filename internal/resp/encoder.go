@@ -9,27 +9,6 @@ import (
 )
 
 
-
-func Encode(input string) string {
-    var b strings.Builder
-    args, err := Splitter(input)
-
-    if err != nil {
-        panic(err)
-    }
-
-    fmt.Fprintf(&b, "*%d\r\n", len(args))
-
-    for _, arg := range args {
-        fmt.Fprintf(&b, "$%d\r\n%s\r\n", len(arg), arg)
-    }
-
-    fmt.Println(args)
-
-    return b.String()
-}
-
-
 func Splitter(input string) ([]string, error) {
     var args []string
 
@@ -100,6 +79,26 @@ func Splitter(input string) ([]string, error) {
 }
 
 
+func Encode(input string) string {
+    var b strings.Builder
+    args, err := Splitter(input)
+
+    if err != nil {
+        panic(err)
+    }
+
+    fmt.Fprintf(&b, "*%d\r\n", len(args))
+
+    for _, arg := range args {
+        fmt.Fprintf(&b, "$%d\r\n%s\r\n", len(arg), arg)
+    }
+
+    fmt.Println(args)
+
+    return b.String()
+}
+
+
 
 func EncodeSimpleString(input string) (string) {
     str := "+" + input + "\r\n"
@@ -115,3 +114,10 @@ func EncodeInteger(input int64) (string) {
     return ":" + strconv.FormatInt(input,10) + "\r\n"
 }
 
+func EncodeBulkString(input string) (string) {
+	if input == "" {
+		return "$-1\r\n"
+	}
+	str := "$" + strconv.Itoa(len(input)) + "\r\n" + input + "\r\n"
+	return str
+}

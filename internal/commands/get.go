@@ -17,7 +17,7 @@ func Get(cmd datatypes.Command) (string, error) {
 	v, ok := store.DB.Get(k)
 
 	if ok != true {
-		return "", errors.New("key doesn't exist")
+		return resp.EncodeBulkString(""), nil
 	}
-	return resp.EncodeSimpleString(v), nil
+	return resp.EncodeBulkString(v), nil
 }
