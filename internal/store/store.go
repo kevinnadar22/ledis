@@ -68,3 +68,10 @@ func (s *Store) INCR(key string) (int64, error) {
 	s.data[key] = strconv.Itoa(int_val)
 	return int64(int_val), nil
 }
+
+func (s *Store) FlushAll() {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	s.data = make(map[string]string)
+}
+

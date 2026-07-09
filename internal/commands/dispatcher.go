@@ -1,12 +1,14 @@
 package commands
 
 import (
+	"strings"
+
 	"github.com/kevinnadar22/ledis/internal/datatypes"
 	"github.com/kevinnadar22/ledis/internal/resp"
 )
 
 func Execute(cmd datatypes.Command) string {
-	cmdStr := cmd.Cmd.String()
+	cmdStr := strings.ToUpper(cmd.Cmd.String())
 	var handler func(cmd datatypes.Command) (string, error)
 
 	switch cmdStr {
@@ -24,6 +26,8 @@ func Execute(cmd datatypes.Command) string {
 		handler = Del
 	case "EXISTS":
 		handler = Exists
+	case "FLUSHALL":
+		handler = FlushAll
 	default:
 		return resp.EncodeError("unknown command")
 	}
