@@ -60,16 +60,32 @@ func (a *AOF) Replay(handler func(cmd datatypes.Command) error) error {
 	// we need to read the file buffer by buffer, call the decode function and update the bytes consumed, if error, skip that and continue
 	// since we are replaying, we don't need to write to AOF 
 	a.replaying = true
+	defer func() {
+		a.replaying = false
+	}()
+
 	reader := bufio.NewReader(a.file)
+
 
 	// while 
 	for {
 		cmd_line, err := resp.DecodeBulkStringsArrayFromReader(reader)
-		if err != nil {
+
+		if err == io.EOF {
 			break
 		}
-		
+		if err != nil {
+			return err
+		}
+
 		cmd, err := resp.Decode(cmd_line)
+
+		fmt.Printf("Replaying: %q\n", *cmd.Cmd.Str)
+
+		for _, arg := range cmd.Args {
+			fmt.Printf("Arg: %q\n", *arg.Str)
+		}
+		
 		if err != nil {
 			fmt.Println("Error decoding command:", err)
 			continue
@@ -77,7 +93,6 @@ func (a *AOF) Replay(handler func(cmd datatypes.Command) error) error {
 		handler(cmd)
 	}
 
-	a.replaying = false
 	return nil
 }
 
