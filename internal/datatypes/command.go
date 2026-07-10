@@ -59,5 +59,5 @@ func (v Value) String() string {
 type Command struct {
 	Cmd Value
 	Args []Value
-	Content Value
+	RawContent string
 }

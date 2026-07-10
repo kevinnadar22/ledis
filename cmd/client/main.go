@@ -46,10 +46,10 @@ func main() {
 			panic(err)
 		}
 
-		val, err := resp.Decode(string(b[:n]))
+		_, err = resp.Decode(string(b[:n]))
 		if err != nil {
 			panic(err)
 		}
-		fmt.Println(val.Content)
+
 	}
 }

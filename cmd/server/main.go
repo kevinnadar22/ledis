@@ -1,18 +1,19 @@
 package main
 
 import (
-
 	"fmt"
 
 	"log"
 	"net"
 
 	"github.com/kevinnadar22/ledis/internal/commands"
+	"github.com/kevinnadar22/ledis/internal/datatypes"
+	"github.com/kevinnadar22/ledis/internal/persistence"
 	"github.com/kevinnadar22/ledis/internal/resp"
 )
 
 func main() {
-	listener, err := net.Listen("tcp", ":6379")
+	listener, err := net.Listen("tcp", ":7379")
 
 	if err != nil {
 		log.Fatal(err)
@@ -20,8 +21,19 @@ func main() {
 	}
 
 	defer listener.Close()
+	defer persistence.AOFStore.Close()
 
-	fmt.Println("Listening on port 6379")
+	// if aof file exists, replay it
+	err = persistence.AOFStore.Replay(func(cmd datatypes.Command) error {
+		commands.Execute(cmd)
+		return nil
+	})
+	
+	if err != nil {
+		log.Fatal("Error replaying AOF:", err)
+	}
+
+	fmt.Println("Listening on port 7379")
 
 	for {
 		conn, err := listener.Accept()

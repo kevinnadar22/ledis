@@ -2,10 +2,12 @@ package commands
 
 import (
 	"errors"
+	"log"
 	"strconv"
 	"strings"
 
 	"github.com/kevinnadar22/ledis/internal/datatypes"
+	"github.com/kevinnadar22/ledis/internal/persistence"
 	"github.com/kevinnadar22/ledis/internal/resp"
 	"github.com/kevinnadar22/ledis/internal/store"
 )
@@ -90,6 +92,13 @@ func Set(cmd datatypes.Command) (string, error) {
 
 	if options.EX != nil {
 		store.DB.Expire(k,  *options.EX)
+	}
+
+
+	err = persistence.AOFStore.Append([]byte(cmd.RawContent))
+	if err != nil {
+		log.Println("Error appending to AOF:", err)
+		return "", err
 	}
 
 	return resp.EncodeSimpleString("OK"), nil

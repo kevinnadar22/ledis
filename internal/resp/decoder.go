@@ -2,7 +2,9 @@
 package resp
 
 import (
+	"bufio"
 	"errors"
+	"io"
 	"strconv"
 	"strings"
 
@@ -174,12 +176,95 @@ func Decode(cmd string) (datatypes.Command, error) {
 
 	if v.Type != datatypes.Array {
 		return datatypes.Command{
-			Content: v,
+			RawContent: cmd,
 		}, nil
 	}
 
 	cmd_val := v.Array[0]
 	args := v.Array[1:]
 
-	return datatypes.Command{Cmd: cmd_val, Args: args, Content: v}, nil
+	return datatypes.Command{Cmd: cmd_val, Args: args, RawContent: cmd}, nil
+}
+
+func DecodeBulkStringsArrayFromReader(reader *bufio.Reader) (string, error) {
+	// decodes a cmd and returns a string version like
+	// *3\r\n$4\r\nPING\r\n$4\r\nPONG\r\n
+	first_byte, err := reader.ReadByte()
+	if err != nil {
+		return "", err
+	}
+
+	if first_byte != '*' {
+		return "", errors.New("invalid bulk string array")
+	}
+
+	var builder strings.Builder
+	builder.WriteByte('*')
+
+	lenLine, err := reader.ReadString('\n')
+	if err != nil {
+		return "", err
+	}
+	builder.WriteString(lenLine)
+
+	if !strings.HasSuffix(lenLine, "\r\n") {
+		return "", errors.New("invalid array line terminator")
+	}
+
+	lenStr := lenLine[:len(lenLine)-2]
+	arrayLength, err := strconv.Atoi(lenStr)
+	if err != nil {
+		return "", err
+	}
+
+	if arrayLength < 0 {
+		return "", errors.New("invalid array length")
+	}
+
+	for i := 0; i < arrayLength; i++ {
+		firstByte, err := reader.ReadByte()
+		if err != nil {
+			return "", err
+		}
+		if firstByte != '$' {
+			return "", errors.New("invalid bulk string prefix")
+		}
+		builder.WriteByte('$')
+
+		lenLine, err := reader.ReadString('\n')
+		if err != nil {
+			return "", err
+		}
+		builder.WriteString(lenLine)
+
+		if !strings.HasSuffix(lenLine, "\r\n") {
+			return "", errors.New("invalid bulk string length line terminator")
+		}
+
+		bulkLenStr := lenLine[:len(lenLine)-2]
+		bulkLen, err := strconv.Atoi(bulkLenStr)
+		if err != nil {
+			return "", err
+		}
+
+		if bulkLen == -1 {
+			continue
+		}
+		if bulkLen < 0 {
+			return "", errors.New("invalid bulk string length")
+		}
+
+		dataBuf := make([]byte, bulkLen+2)
+		_, err = io.ReadFull(reader, dataBuf)
+		if err != nil {
+			return "", err
+		}
+		builder.Write(dataBuf)
+
+		if dataBuf[bulkLen] != '\r' || dataBuf[bulkLen+1] != '\n' {
+			return "", errors.New("invalid bulk string data line terminator")
+		}
+	}
+
+	return builder.String(), nil
 }

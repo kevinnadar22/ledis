@@ -5,6 +5,7 @@ import (
 	"github.com/kevinnadar22/ledis/internal/datatypes"
 	"github.com/kevinnadar22/ledis/internal/resp"
 	"github.com/kevinnadar22/ledis/internal/store"
+	"github.com/kevinnadar22/ledis/internal/persistence"
 )
 
 func Del(cmd datatypes.Command) (string, error) {
@@ -19,5 +20,8 @@ func Del(cmd datatypes.Command) (string, error) {
 			count++
 		}
 	}
+
+	persistence.AOFStore.Append([]byte(cmd.RawContent))
+
 	return resp.EncodeInteger(int64(count)), nil
 }
