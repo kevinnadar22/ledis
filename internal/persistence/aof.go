@@ -6,23 +6,46 @@ import (
 	"io"
 	"os"
 	"sync"
+	"time"
 
 	"github.com/kevinnadar22/ledis/internal/datatypes"
 	"github.com/kevinnadar22/ledis/internal/resp"
 )
 
+type FsyncPolicy int
+
+const (
+    FsyncAlways FsyncPolicy = iota
+    FsyncEverySecond
+    FsyncNo
+)
+
 type AOF struct {
-	file *os.File
-	mu   sync.Mutex
-	replaying bool
+	file        *os.File
+	mu          sync.Mutex
+	replaying   bool
+	fsyncPolicy FsyncPolicy
+	done        chan struct{}
 }
 
-func NewAOF(path string) (*AOF, error) {
+func NewAOF(path string, policy FsyncPolicy) (*AOF, error) {
 	file, err := os.OpenFile(path, os.O_CREATE|os.O_APPEND|os.O_RDWR, 0644)
 	if err != nil {
 		return nil, err
 	}
-	return &AOF{file: file}, nil
+	
+	a := &AOF{
+		file: file,
+		fsyncPolicy: policy,
+		done: make(chan struct{}),
+	}
+
+	// start background sync goroutine
+	if a.fsyncPolicy == FsyncEverySecond {
+		a.startSyncer()
+	}
+
+	return a, nil
 }
 
 func (a *AOF) Append(respCmd []byte) error {
@@ -43,16 +66,35 @@ func (a *AOF) Append(respCmd []byte) error {
 	}
 
 	// sync
-	err = a.file.Sync()
-	if err != nil {
-		return err
+	
+	if a.fsyncPolicy == FsyncAlways {
+		err = a.file.Sync()
+		if err != nil {
+			return err
+		}
 	}
 
 	return nil
 }
 
 func (a *AOF) Close() error {
-	return a.file.Close()
+    close(a.done)
+
+    a.mu.Lock()
+    defer a.mu.Unlock()
+
+    err := a.file.Sync()
+    if err != nil {
+		return err
+	}
+
+	err = a.file.Close()
+
+	if err != nil {
+		return err
+	}
+
+	return nil
 }
 
 
@@ -96,4 +138,22 @@ func (a *AOF) Replay(handler func(cmd datatypes.Command) error) error {
 	return nil
 }
 
-var AOFStore, _ = NewAOF("./appendonly.aof")
+func (a *AOF) startSyncer() {
+    ticker := time.NewTicker(time.Second)
+
+    go func() {
+        defer ticker.Stop()
+
+        for range ticker.C {
+            select {
+			case <-ticker.C:
+                a.mu.Lock()
+                _ = a.file.Sync()
+                a.mu.Unlock()
+
+            case <-a.done:
+                return
+			}
+        }
+    }()
+}

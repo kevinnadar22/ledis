@@ -2,7 +2,6 @@ package main
 
 import (
 	"fmt"
-
 	"log"
 	"net"
 
@@ -10,6 +9,7 @@ import (
 	"github.com/kevinnadar22/ledis/internal/datatypes"
 	"github.com/kevinnadar22/ledis/internal/persistence"
 	"github.com/kevinnadar22/ledis/internal/resp"
+	"github.com/kevinnadar22/ledis/internal/store"
 )
 
 func main() {
@@ -21,11 +21,20 @@ func main() {
 	}
 
 	defer listener.Close()
-	defer persistence.AOFStore.Close()
+
+	db := store.NewStore()
+	aof, err := persistence.NewAOF("./appendonly.aof", persistence.FsyncNo)
+	if err != nil {
+		log.Fatal("Error creating AOF:", err)
+		return
+	}
+	defer aof.Close()
+
+	srv := commands.NewServer(db, aof)
 
 	// if aof file exists, replay it
-	err = persistence.AOFStore.Replay(func(cmd datatypes.Command) error {
-		commands.Execute(cmd)
+	err = aof.Replay(func(cmd datatypes.Command) error {
+		srv.Execute(cmd)
 		return nil
 	})
 	
@@ -45,11 +54,11 @@ func main() {
 
 		fmt.Println("New connection:", conn.RemoteAddr())
 
-		go handleConnection(conn)
+		go handleConnection(conn, srv)
 	}
 }
 
-func handleConnection(conn net.Conn) {
+func handleConnection(conn net.Conn, srv *commands.Server) {
 	defer conn.Close()
 
 	buffer := make([]byte, 1024)
@@ -67,8 +76,8 @@ func handleConnection(conn net.Conn) {
 			fmt.Println("Error decoding command:", err)
 			continue
 		}
-		response := commands.Execute(cmd)
-		// write back to clinet
+		response := srv.Execute(cmd)
+		// write back to client
 		conn.Write([]byte(response))
 	}
 }

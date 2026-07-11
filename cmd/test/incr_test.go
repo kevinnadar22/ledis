@@ -2,17 +2,14 @@ package main
 
 import (
 	"testing"
-
-	"github.com/kevinnadar22/ledis/internal/commands"
-	"github.com/kevinnadar22/ledis/internal/store"
 )
 
 func TestIncrCommand(t *testing.T) {
-	store.DB.FlushAll()
+	srv := newTestServer(t)
 
 	t.Run("Incr non-existing key", func(t *testing.T) {
 		cmd := makeCommand("INCR", "counter")
-		res, err := commands.INCR(cmd)
+		res, err := srv.INCR(cmd)
 		if err != nil {
 			t.Fatalf("unexpected error: %v", err)
 		}
@@ -23,7 +20,7 @@ func TestIncrCommand(t *testing.T) {
 
 	t.Run("Incr existing integer key", func(t *testing.T) {
 		cmd := makeCommand("INCR", "counter")
-		res, err := commands.INCR(cmd)
+		res, err := srv.INCR(cmd)
 		if err != nil {
 			t.Fatalf("unexpected error: %v", err)
 		}
@@ -33,9 +30,9 @@ func TestIncrCommand(t *testing.T) {
 	})
 
 	t.Run("Incr non-integer key", func(t *testing.T) {
-		store.DB.Set("notanint", "hello")
+		srv.DB().Set("notanint", "hello")
 		cmd := makeCommand("INCR", "notanint")
-		_, err := commands.INCR(cmd)
+		_, err := srv.INCR(cmd)
 		if err == nil {
 			t.Error("expected error for non-integer increment, got nil")
 		}
@@ -43,7 +40,7 @@ func TestIncrCommand(t *testing.T) {
 
 	t.Run("Missing arguments", func(t *testing.T) {
 		cmd := makeCommand("INCR")
-		_, err := commands.INCR(cmd)
+		_, err := srv.INCR(cmd)
 		if err == nil {
 			t.Error("expected error but got nil")
 		}

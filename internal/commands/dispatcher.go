@@ -7,29 +7,29 @@ import (
 	"github.com/kevinnadar22/ledis/internal/resp"
 )
 
-func Execute(cmd datatypes.Command) string {
+func (s *Server) Execute(cmd datatypes.Command) string {
 	cmdStr := strings.ToUpper(cmd.Cmd.String())
 	var handler func(cmd datatypes.Command) (string, error)
 
 	switch cmdStr {
 	case "PING":
-		handler = Ping
+		handler = s.Ping
 	case "ECHO":
-		handler = Echo
+		handler = s.Echo
 	case "GET":
-		handler = Get
+		handler = s.Get
 	case "SET":
-		handler = Set
+		handler = s.Set
 	case "INCR":
-		handler = INCR
+		handler = s.INCR
 	case "DEL":
-		handler = Del
+		handler = s.Del
 	case "EXISTS":
-		handler = Exists
+		handler = s.Exists
 	case "FLUSHALL":
-		handler = FlushAll
+		handler = s.FlushAll
 	case "TTL":
-		handler = TTL
+		handler = s.TTL
 	default:
 		return resp.EncodeError("unknown command")
 	}

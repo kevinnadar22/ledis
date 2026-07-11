@@ -2,17 +2,14 @@ package main
 
 import (
 	"testing"
-
-	"github.com/kevinnadar22/ledis/internal/commands"
-	"github.com/kevinnadar22/ledis/internal/store"
 )
 
 func TestExistsCommand(t *testing.T) {
-	store.DB.FlushAll()
+	srv := newTestServer(t)
 
 	t.Run("Exists on non-existing key", func(t *testing.T) {
 		cmd := makeCommand("EXISTS", "key")
-		res, err := commands.Exists(cmd)
+		res, err := srv.Exists(cmd)
 		if err != nil {
 			t.Fatalf("unexpected error: %v", err)
 		}
@@ -22,9 +19,9 @@ func TestExistsCommand(t *testing.T) {
 	})
 
 	t.Run("Exists on existing key", func(t *testing.T) {
-		store.DB.Set("key", "val")
+		srv.DB().Set("key", "val")
 		cmd := makeCommand("EXISTS", "key")
-		res, err := commands.Exists(cmd)
+		res, err := srv.Exists(cmd)
 		if err != nil {
 			t.Fatalf("unexpected error: %v", err)
 		}
@@ -35,7 +32,7 @@ func TestExistsCommand(t *testing.T) {
 
 	t.Run("Missing arguments", func(t *testing.T) {
 		cmd := makeCommand("EXISTS")
-		_, err := commands.Exists(cmd)
+		_, err := srv.Exists(cmd)
 		if err == nil {
 			t.Error("expected error but got nil")
 		}

@@ -16,8 +16,8 @@ func TestAOFWriteAndReplay(t *testing.T) {
 	tempDir := t.TempDir()
 	tempAOFPath := filepath.Join(tempDir, "test_appendonly.aof")
 
-	// 1. Initialize AOF
-	aof, err := persistence.NewAOF(tempAOFPath)
+		// 1. Initialize AOF
+	aof, err := persistence.NewAOF(tempAOFPath, persistence.FsyncNo)
 	if err != nil {
 		t.Fatalf("failed to create NewAOF: %v", err)
 	}

@@ -7,9 +7,7 @@ import (
 	"strings"
 
 	"github.com/kevinnadar22/ledis/internal/datatypes"
-	"github.com/kevinnadar22/ledis/internal/persistence"
 	"github.com/kevinnadar22/ledis/internal/resp"
-	"github.com/kevinnadar22/ledis/internal/store"
 )
 
 type SetOptions struct {
@@ -62,7 +60,7 @@ func ParseSetOptions(cmd datatypes.Command) (SetOptions, error) {
 	return options, nil
 }
 
-func Set(cmd datatypes.Command) (string, error) {
+func (s *Server) Set(cmd datatypes.Command) (string, error) {
 	if len(cmd.Args) < 2 {
 		return "", errors.New("wrong number of arguments for 'set' command")
 	}
@@ -82,20 +80,20 @@ func Set(cmd datatypes.Command) (string, error) {
 	k := *cmd.Args[0].Str
 	v := *cmd.Args[1].Str
 
-	isExistent := store.DB.Exist(k)
+	isExistent := s.db.Exist(k)
 
 	if (options.NX != nil && isExistent) || (options.XX != nil && !isExistent) {
 		return resp.EncodeBulkString(""), nil
 	}
 
-	store.DB.Set(k, v)
+	s.db.Set(k, v)
 
 	if options.EX != nil {
-		store.DB.Expire(k,  *options.EX)
+		s.db.Expire(k,  *options.EX)
 	}
 
 
-	err = persistence.AOFStore.Append([]byte(cmd.RawContent))
+	err = s.aof.Append([]byte(cmd.RawContent))
 	if err != nil {
 		log.Println("Error appending to AOF:", err)
 		return "", err

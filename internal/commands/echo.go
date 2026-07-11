@@ -7,7 +7,7 @@ import (
 	"github.com/kevinnadar22/ledis/internal/resp"
 )
 
-func Echo(cmd datatypes.Command) (string, error) {
+func (s *Server) Echo(cmd datatypes.Command) (string, error) {
 	if len(cmd.Args) == 0 {
 		return "", errors.New("wrong number of arguments for 'echo' command")
 	}

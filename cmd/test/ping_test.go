@@ -2,13 +2,12 @@ package main
 
 import (
 	"testing"
-
-	"github.com/kevinnadar22/ledis/internal/commands"
 )
 
 func TestPingCommand(t *testing.T) {
+	srv := newTestServer(t)
 	cmd := makeCommand("PING")
-	res, err := commands.Ping(cmd)
+	res, err := srv.Ping(cmd)
 	if err != nil {
 		t.Fatalf("unexpected error: %v", err)
 	}

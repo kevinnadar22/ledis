@@ -6,6 +6,6 @@ import (
 	"github.com/kevinnadar22/ledis/internal/resp"
 )
 
-func Ping(cmd datatypes.Command) (string, error) {
+func (s *Server) Ping(cmd datatypes.Command) (string, error) {
 	return resp.EncodeSimpleString("PONG"), nil
 }
