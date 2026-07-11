@@ -49,13 +49,21 @@ func NewAOF(path string, policy FsyncPolicy) (*AOF, error) {
 }
 
 func (a *AOF) Append(respCmd []byte) error {
+	// if not enabled, don't append
+	if a == nil {
+		return nil
+	}
+
+	// if replaying, don't append
 	if a.replaying {
 		return nil
 	}
 
+	// lock
 	a.mu.Lock()
 	defer a.mu.Unlock()
 
+	// write to aof
 	n, err := a.file.Write(respCmd)
 	if err != nil {
 		return err

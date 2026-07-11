@@ -6,6 +6,7 @@ import (
 	"net"
 
 	"github.com/kevinnadar22/ledis/internal/commands"
+	"github.com/kevinnadar22/ledis/internal/config"
 	"github.com/kevinnadar22/ledis/internal/datatypes"
 	"github.com/kevinnadar22/ledis/internal/persistence"
 	"github.com/kevinnadar22/ledis/internal/resp"
@@ -22,25 +23,43 @@ func main() {
 
 	defer listener.Close()
 
+	// create in memory database
 	db := store.NewStore()
-	aof, err := persistence.NewAOF("./appendonly.aof", persistence.FsyncNo)
+
+	// load config
+	cfg, err := config.Load()
 	if err != nil {
-		log.Fatal("Error creating AOF:", err)
+		log.Fatal("Error loading config:", err)
 		return
 	}
-	defer aof.Close()
+	
+	// create AOF if append only is enabled
+	var aof *persistence.AOF
+	
+	if cfg.AppendOnly {
+		aof, err = persistence.NewAOF("./appendonly.aof", cfg.FsyncPolicy)
+		if err != nil {
+			log.Fatal("Error creating AOF:", err)
+			return
+		}
+		defer aof.Close()
+	}
 
+	// create server with db and aof
 	srv := commands.NewServer(db, aof)
 
 	// if aof file exists, replay it
-	err = aof.Replay(func(cmd datatypes.Command) error {
-		srv.Execute(cmd)
-		return nil
-	})
-	
-	if err != nil {
-		log.Fatal("Error replaying AOF:", err)
+	if cfg.AppendOnly {
+		err = aof.Replay(func(cmd datatypes.Command) error {
+			srv.Execute(cmd)
+			return nil
+		})
+		if err != nil {
+			log.Fatal("Error replaying AOF:", err)
+		}
 	}
+
+	// start accepting connections
 
 	fmt.Println("Listening on port 7379")
 
