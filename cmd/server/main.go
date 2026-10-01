@@ -45,8 +45,28 @@ func main() {
 		defer aof.Close()
 	}
 
+	// create rdb
+	rdb := persistence.NewRDB()
+
 	// create server with db and aof
-	srv := commands.NewServer(db, aof)
+	srv := commands.NewServer(db, aof, cfg, rdb)
+
+	// if rdb file exists, load it
+	if cfg.RDBFile != "" {
+		err := rdb.Create(cfg.RDBFile)
+		if err != nil {
+			log.Fatal("Error creating RDB file:", err)
+			return
+		}
+
+		fmt.Println("Loading RDB from file:", cfg.RDBFile)
+		entries, err := rdb.Load(cfg.RDBFile)
+		if err != nil {
+			log.Fatal("Error loading RDB:", err)
+			return
+		}
+		db.RestoreSnapshot(entries)
+	}
 
 	// if aof file exists, replay it
 	if cfg.AppendOnly {
@@ -60,7 +80,6 @@ func main() {
 	}
 
 	// start accepting connections
-
 	fmt.Println("Listening on port 7379")
 
 	for {

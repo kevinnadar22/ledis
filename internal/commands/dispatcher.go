@@ -30,6 +30,10 @@ func (s *Server) Execute(cmd datatypes.Command) string {
 		handler = s.FlushAll
 	case "TTL":
 		handler = s.TTL
+	case "SAVE":
+		handler = s.Save
+	case "BGSAVE":
+		handler = s.BGSave
 	default:
 		return resp.EncodeError("unknown command")
 	}

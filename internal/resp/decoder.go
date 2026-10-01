@@ -123,6 +123,7 @@ func DecodeArray(cmd string, start_byte int) (datatypes.Value, datatypes.ByteCon
 	// <elementN>
 
 	// example *2\r\n$4\r\nping\r\n$4\r\npong\r\n
+	// returns [datatypes.Value{Type: datatypes.BulkString, Str: &"ping"}, datatypes.Value{Type: datatypes.BulkString, Str: &"pong"}]
 
 	end := start_byte + strings.Index(cmd[start_byte:], "\r\n")
 

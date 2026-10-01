@@ -5,6 +5,7 @@ import (
 	"testing"
 
 	"github.com/kevinnadar22/ledis/internal/commands"
+	"github.com/kevinnadar22/ledis/internal/config"
 	"github.com/kevinnadar22/ledis/internal/datatypes"
 	"github.com/kevinnadar22/ledis/internal/persistence"
 	"github.com/kevinnadar22/ledis/internal/store"
@@ -29,8 +30,15 @@ func makeCommand(cmdName string, args ...string) datatypes.Command {
 }
 
 func newTestServer(t *testing.T) *commands.Server {
+	srv, _ := newTestServerWithRDB(t)
+	return srv
+}
+
+func newTestServerWithRDB(t *testing.T) (*commands.Server, string) {
+	t.Helper()
 	tempDir := t.TempDir()
 	tempAOFPath := filepath.Join(tempDir, "test_appendonly.aof")
+	tempRDBPath := filepath.Join(tempDir, "dump.rdb")
 	aof, err := persistence.NewAOF(tempAOFPath, persistence.FsyncNo)
 	if err != nil {
 		t.Fatalf("failed to create test AOF: %v", err)
@@ -39,5 +47,18 @@ func newTestServer(t *testing.T) *commands.Server {
 		aof.Close()
 	})
 	db := store.NewStore()
-	return commands.NewServer(db, aof)
+	cfg := newTestConfig(tempRDBPath)
+	return commands.NewServer(db, aof, cfg, newTestRDB()), tempRDBPath
+}
+
+func newTestConfig(rdbPath string) *config.Config {
+	return &config.Config{
+		AppendOnly:  true,
+		FsyncPolicy: persistence.FsyncNo,
+		RDBFile:     rdbPath,
+	}
+}
+
+func newTestRDB() *persistence.RDB {
+	return persistence.NewRDB()
 }

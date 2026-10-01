@@ -9,11 +9,21 @@ import (
 type Config struct {
 	AppendOnly bool
 	FsyncPolicy persistence.FsyncPolicy
+	RDBFile string
+}
+
+func GetConfig() *Config {
+	return &Config{
+		AppendOnly: true,
+		FsyncPolicy: persistence.FsyncEverySecond,
+		RDBFile: "./dump.rdb",
+	}
 }
 
 func Load() (*Config, error) {
 	appendOnly := flag.Bool("appendonly", true, "enable AOF")
 	appendFsync := flag.String("appendfsync", "everysec", "no|everysec|always")
+	rdbFile := flag.String("rdb", "", "path to rdb file")
 
 	flag.Parse()
 
@@ -30,6 +40,7 @@ func Load() (*Config, error) {
 		return nil, fmt.Errorf("invalid appendfsync: %s", *appendFsync)
 	}
 
+
 	// log config
 	fmt.Printf("Config: %+v\n", &Config{
 		AppendOnly: *appendOnly,
@@ -39,5 +50,6 @@ func Load() (*Config, error) {
 	return &Config{
 		AppendOnly: *appendOnly,
 		FsyncPolicy: policy,
+		RDBFile: *rdbFile,
 	}, nil
 }

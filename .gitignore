@@ -33,3 +33,5 @@ go.work.sum
 appendonly.aof
 tmp/build-errors.log
 .vscode/launch.json
+
+dump.rdb

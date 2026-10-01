@@ -5,6 +5,7 @@ import (
 	"strconv"
 	"sync"
 
+	"github.com/kevinnadar22/ledis/internal/datatypes"
 	"github.com/kevinnadar22/ledis/internal/utils"
 )
 
@@ -119,4 +120,32 @@ func (s *Store) TTL(key string) int64 {
 	}
 
 	return utils.RemainingTTL(exp)
+}
+
+
+func (s *Store) RestoreSnapshot(entries []datatypes.RDBEntry) {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	for _, entry := range entries {
+		s.data[entry.Key] = entry.Value
+		if entry.Expiration != nil {
+			s.expires[entry.Key] = utils.CalculateExpireAt(*entry.Expiration)
+		}
+	}
+}
+
+func (s *Store) SaveSnapshot() ([]datatypes.RDBEntry, error) {
+	s.mu.RLock()
+	defer s.mu.RUnlock()
+	entries := make([]datatypes.RDBEntry, 0)
+	for key, value := range s.data {
+		exp, ok := s.expires[key]
+		if ok {
+			entries = append(entries, datatypes.RDBEntry{Key: key, Value: value, Expiration: &exp})
+		} else {
+			entries = append(entries, datatypes.RDBEntry{Key: key, Value: value, Expiration: nil})
+		}
+	}
+
+	return entries, nil
 }

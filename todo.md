@@ -1,2 +1,3 @@
+automatic save like
 
-show help
+save 900 1
