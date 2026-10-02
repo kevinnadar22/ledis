@@ -7,13 +7,13 @@ import (
 	"github.com/kevinnadar22/ledis/internal/resp"
 )
 
-func (s *Server) Get(cmd datatypes.Command) (string, error) {
+func (sess *Session) Get(cmd datatypes.Command) (string, error) {
 	if len(cmd.Args) < 1 {
 		return "", errors.New("wrong number of arguments for 'get' command")
 	}
 	k := *cmd.Args[0].Str
 
-	v, ok := s.db.Get(k)
+	v, ok := sess.srv.db.Get(k)
 
 	if ok != true {
 		return resp.EncodeBulkString(""), nil

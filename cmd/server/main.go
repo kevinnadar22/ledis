@@ -48,8 +48,11 @@ func main() {
 	// create rdb
 	rdb := persistence.NewRDB()
 
+	// create pubsub
+	pubsub := store.NewPubSub()
+
 	// create server with db and aof
-	srv := commands.NewServer(db, aof, cfg, rdb)
+	srv := commands.NewServer(db, aof, cfg, rdb, pubsub)
 
 	// if rdb file exists, load it
 	if cfg.RDBFile != "" {
@@ -97,6 +100,8 @@ func main() {
 }
 
 func handleConnection(conn net.Conn, srv *commands.Server) {
+	sess := commands.NewSession(conn, srv)
+	defer sess.Close()
 	defer conn.Close()
 
 	buffer := make([]byte, 1024)
@@ -114,7 +119,7 @@ func handleConnection(conn net.Conn, srv *commands.Server) {
 			fmt.Println("Error decoding command:", err)
 			continue
 		}
-		response := srv.Execute(cmd)
+		response := sess.Execute(cmd)
 		// write back to client
 		conn.Write([]byte(response))
 	}

@@ -7,10 +7,11 @@ import (
 
 func TestTTLCommand(t *testing.T) {
 	srv := newTestServer(t)
+	sess := newTestSessionFromServer(srv)
 
 	t.Run("TTL on non-existing key", func(t *testing.T) {
 		cmd := makeCommand("TTL", "nonexistent")
-		res, err := srv.TTL(cmd)
+		res, err := sess.TTL(cmd)
 		if err != nil {
 			t.Fatalf("unexpected error: %v", err)
 		}
@@ -22,7 +23,7 @@ func TestTTLCommand(t *testing.T) {
 	t.Run("TTL on existing key without expiry", func(t *testing.T) {
 		srv.DB().Set("key", "val")
 		cmd := makeCommand("TTL", "key")
-		res, err := srv.TTL(cmd)
+		res, err := sess.TTL(cmd)
 		if err != nil {
 			t.Fatalf("unexpected error: %v", err)
 		}
@@ -35,7 +36,7 @@ func TestTTLCommand(t *testing.T) {
 		srv.DB().Set("key", "val")
 		srv.DB().Expire("key", 10) // 10 seconds expiration
 		cmd := makeCommand("TTL", "key")
-		res, err := srv.TTL(cmd)
+		res, err := sess.TTL(cmd)
 		if err != nil {
 			t.Fatalf("unexpected error: %v", err)
 		}
@@ -51,7 +52,7 @@ func TestTTLCommand(t *testing.T) {
 		time.Sleep(1100 * time.Millisecond)
 
 		cmd := makeCommand("TTL", "key")
-		res, err := srv.TTL(cmd)
+		res, err := sess.TTL(cmd)
 		if err != nil {
 			t.Fatalf("unexpected error: %v", err)
 		}
@@ -62,7 +63,7 @@ func TestTTLCommand(t *testing.T) {
 
 	t.Run("Wrong number of arguments", func(t *testing.T) {
 		cmd := makeCommand("TTL")
-		_, err := srv.TTL(cmd)
+		_, err := sess.TTL(cmd)
 		if err == nil {
 			t.Error("expected error but got nil")
 		}

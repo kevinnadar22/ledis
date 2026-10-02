@@ -6,20 +6,20 @@ import (
 	"github.com/kevinnadar22/ledis/internal/resp"
 )
 
-func (s *Server) Del(cmd datatypes.Command) (string, error) {
+func (sess *Session) Del(cmd datatypes.Command) (string, error) {
 	if len(cmd.Args) < 1 {
 		return "", errors.New("wrong number of arguments for 'del' command")
 	}
 	count := 0
 	for _, arg := range cmd.Args {
 		k := *arg.Str
-		if s.db.Exist(k) {
-			s.db.Delete(k)
+		if sess.srv.db.Exist(k) {
+			sess.srv.db.Delete(k)
 			count++
 		}
 	}
 
-	_ = s.aof.Append([]byte(cmd.RawContent))
+	_ = sess.srv.aof.Append([]byte(cmd.RawContent))
 
 	return resp.EncodeInteger(int64(count)), nil
 }

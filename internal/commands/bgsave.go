@@ -5,12 +5,12 @@ import (
 	"github.com/kevinnadar22/ledis/internal/resp"
 )
 
-func (s *Server) BGSave(cmd datatypes.Command) (string, error) {
-	entries, err := s.DB().SaveSnapshot()
+func (sess *Session) BGSave(cmd datatypes.Command) (string, error) {
+	entries, err := sess.srv.DB().SaveSnapshot()
 	if err != nil {
 		return resp.EncodeError(err.Error()), nil
 	}
-	err = s.RDB().BGSave(s.config.RDBFile, entries)
+	err = sess.srv.RDB().BGSave(sess.srv.config.RDBFile, entries)
 	if err != nil {
 		return resp.EncodeError(err.Error()), nil
 	}

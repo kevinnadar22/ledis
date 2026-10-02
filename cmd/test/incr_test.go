@@ -6,10 +6,11 @@ import (
 
 func TestIncrCommand(t *testing.T) {
 	srv := newTestServer(t)
+	sess := newTestSessionFromServer(srv)
 
 	t.Run("Incr non-existing key", func(t *testing.T) {
 		cmd := makeCommand("INCR", "counter")
-		res, err := srv.INCR(cmd)
+		res, err := sess.INCR(cmd)
 		if err != nil {
 			t.Fatalf("unexpected error: %v", err)
 		}
@@ -20,7 +21,7 @@ func TestIncrCommand(t *testing.T) {
 
 	t.Run("Incr existing integer key", func(t *testing.T) {
 		cmd := makeCommand("INCR", "counter")
-		res, err := srv.INCR(cmd)
+		res, err := sess.INCR(cmd)
 		if err != nil {
 			t.Fatalf("unexpected error: %v", err)
 		}
@@ -32,7 +33,7 @@ func TestIncrCommand(t *testing.T) {
 	t.Run("Incr non-integer key", func(t *testing.T) {
 		srv.DB().Set("notanint", "hello")
 		cmd := makeCommand("INCR", "notanint")
-		_, err := srv.INCR(cmd)
+		_, err := sess.INCR(cmd)
 		if err == nil {
 			t.Error("expected error for non-integer increment, got nil")
 		}
@@ -40,7 +41,7 @@ func TestIncrCommand(t *testing.T) {
 
 	t.Run("Missing arguments", func(t *testing.T) {
 		cmd := makeCommand("INCR")
-		_, err := srv.INCR(cmd)
+		_, err := sess.INCR(cmd)
 		if err == nil {
 			t.Error("expected error but got nil")
 		}

@@ -6,12 +6,12 @@ import (
 	"github.com/kevinnadar22/ledis/internal/resp"
 )
 
-func (s *Server) Save(cmd datatypes.Command) (string, error) {
-	entries, err := s.DB().SaveSnapshot()
+func (sess *Session) Save(cmd datatypes.Command) (string, error) {
+	entries, err := sess.srv.DB().SaveSnapshot()
 	if err != nil {
 		return resp.EncodeError(err.Error()), nil
 	}
-	err = s.RDB().Save(s.config.RDBFile, entries)
+	err = sess.srv.RDB().Save(sess.srv.config.RDBFile, entries)
 	if err != nil {
 		return resp.EncodeError(err.Error()), nil
 	}

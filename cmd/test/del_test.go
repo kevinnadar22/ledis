@@ -6,12 +6,13 @@ import (
 
 func TestDelCommand(t *testing.T) {
 	srv := newTestServer(t)
+	sess := newTestSessionFromServer(srv)
 	srv.DB().Set("key1", "val1")
 	srv.DB().Set("key2", "val2")
 
 	t.Run("Delete existing and non-existing keys", func(t *testing.T) {
 		cmd := makeCommand("DEL", "key1", "key2", "key3")
-		res, err := srv.Del(cmd)
+		res, err := sess.Del(cmd)
 		if err != nil {
 			t.Fatalf("unexpected error: %v", err)
 		}
@@ -25,7 +26,7 @@ func TestDelCommand(t *testing.T) {
 
 	t.Run("Missing arguments", func(t *testing.T) {
 		cmd := makeCommand("DEL")
-		_, err := srv.Del(cmd)
+		_, err := sess.Del(cmd)
 		if err == nil {
 			t.Error("expected error but got nil")
 		}

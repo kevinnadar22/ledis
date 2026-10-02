@@ -7,12 +7,12 @@ import (
 	"github.com/kevinnadar22/ledis/internal/resp"
 )
 
-func (s *Server) Exists(cmd datatypes.Command) (string, error) {
+func (sess *Session) Exists(cmd datatypes.Command) (string, error) {
 	if len(cmd.Args) < 1 {
 		return "", errors.New("wrong number of arguments for 'exists' command")
 	}
 	k := *cmd.Args[0].Str
-	if s.db.Exist(k) {
+	if sess.srv.db.Exist(k) {
 		return resp.EncodeInteger(1), nil
 	}
 	return resp.EncodeInteger(0), nil

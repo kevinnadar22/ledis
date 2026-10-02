@@ -180,9 +180,10 @@ func TestSetCommand(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			srv := newTestServer(t)
+			sess := newTestSessionFromServer(srv)
 			tt.setupStore(srv.DB())
 			cmd := makeCommand("SET", tt.args...)
-			res, err := srv.Set(cmd)
+			res, err := sess.Set(cmd)
 
 			if (err != nil) != tt.wantErr {
 				t.Errorf("Set() error = %v, wantErr %v", err, tt.wantErr)

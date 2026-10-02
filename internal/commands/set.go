@@ -60,7 +60,7 @@ func ParseSetOptions(cmd datatypes.Command) (SetOptions, error) {
 	return options, nil
 }
 
-func (s *Server) Set(cmd datatypes.Command) (string, error) {
+func (sess *Session) Set(cmd datatypes.Command) (string, error) {
 	if len(cmd.Args) < 2 {
 		return "", errors.New("wrong number of arguments for 'set' command")
 	}
@@ -80,20 +80,20 @@ func (s *Server) Set(cmd datatypes.Command) (string, error) {
 	k := *cmd.Args[0].Str
 	v := *cmd.Args[1].Str
 
-	isExistent := s.db.Exist(k)
+	isExistent := sess.srv.db.Exist(k)
 
 	if (options.NX != nil && isExistent) || (options.XX != nil && !isExistent) {
 		return resp.EncodeBulkString(""), nil
 	}
 
-	s.db.Set(k, v)
+	sess.srv.db.Set(k, v)
 
 	if options.EX != nil {
-		s.db.Expire(k,  *options.EX)
+		sess.srv.db.Expire(k,  *options.EX)
 	}
 
 
-	err = s.aof.Append([]byte(cmd.RawContent))
+	err = sess.srv.aof.Append([]byte(cmd.RawContent))
 	if err != nil {
 		log.Println("Error appending to AOF:", err)
 		return "", err

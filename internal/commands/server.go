@@ -11,14 +11,16 @@ type Server struct {
 	aof *persistence.AOF
 	config *config.Config
 	rdb *persistence.RDB
+	pubsub *store.PubSub
 }
 
-func NewServer(db *store.Store, aof *persistence.AOF, config *config.Config, rdb *persistence.RDB) *Server {
+func NewServer(db *store.Store, aof *persistence.AOF, config *config.Config, rdb *persistence.RDB, pubsub *store.PubSub) *Server {
 	return &Server{
 		db:  db,
 		aof: aof,
 		config: config,
 		rdb: rdb,
+		pubsub: pubsub,
 	}
 }
 

@@ -6,10 +6,11 @@ import (
 
 func TestExistsCommand(t *testing.T) {
 	srv := newTestServer(t)
+	sess := newTestSessionFromServer(srv)
 
 	t.Run("Exists on non-existing key", func(t *testing.T) {
 		cmd := makeCommand("EXISTS", "key")
-		res, err := srv.Exists(cmd)
+		res, err := sess.Exists(cmd)
 		if err != nil {
 			t.Fatalf("unexpected error: %v", err)
 		}
@@ -21,7 +22,7 @@ func TestExistsCommand(t *testing.T) {
 	t.Run("Exists on existing key", func(t *testing.T) {
 		srv.DB().Set("key", "val")
 		cmd := makeCommand("EXISTS", "key")
-		res, err := srv.Exists(cmd)
+		res, err := sess.Exists(cmd)
 		if err != nil {
 			t.Fatalf("unexpected error: %v", err)
 		}
@@ -32,7 +33,7 @@ func TestExistsCommand(t *testing.T) {
 
 	t.Run("Missing arguments", func(t *testing.T) {
 		cmd := makeCommand("EXISTS")
-		_, err := srv.Exists(cmd)
+		_, err := sess.Exists(cmd)
 		if err == nil {
 			t.Error("expected error but got nil")
 		}

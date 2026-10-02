@@ -11,10 +11,11 @@ import (
 
 func TestSaveCommand(t *testing.T) {
 	srv, rdbPath := newTestServerWithRDB(t)
+	sess := newTestSessionFromServer(srv)
 	srv.DB().Set("foo", "bar")
 	srv.DB().Set("hello", "world")
 
-	res, err := srv.Save(makeCommand("SAVE"))
+	res, err := sess.Save(makeCommand("SAVE"))
 	if err != nil {
 		t.Fatalf("Save() unexpected error: %v", err)
 	}
@@ -43,8 +44,9 @@ func TestSaveCommand(t *testing.T) {
 
 func TestSaveCommandEmptyStore(t *testing.T) {
 	srv, rdbPath := newTestServerWithRDB(t)
+	sess := newTestSessionFromServer(srv)
 
-	res, err := srv.Save(makeCommand("SAVE"))
+	res, err := sess.Save(makeCommand("SAVE"))
 	if err != nil {
 		t.Fatalf("Save() unexpected error: %v", err)
 	}
@@ -64,10 +66,11 @@ func TestSaveCommandEmptyStore(t *testing.T) {
 
 func TestSaveCommandRoundTrip(t *testing.T) {
 	srv, rdbPath := newTestServerWithRDB(t)
+	sess := newTestSessionFromServer(srv)
 	srv.DB().Set("a", "1")
 	srv.DB().Set("b", "2")
 
-	if _, err := srv.Save(makeCommand("SAVE")); err != nil {
+	if _, err := sess.Save(makeCommand("SAVE")); err != nil {
 		t.Fatalf("Save() unexpected error: %v", err)
 	}
 
@@ -90,11 +93,12 @@ func TestSaveCommandRoundTrip(t *testing.T) {
 
 func TestSaveCommandWithExpiration(t *testing.T) {
 	srv, rdbPath := newTestServerWithRDB(t)
+	sess := newTestSessionFromServer(srv)
 	srv.DB().Set("temp", "value")
 	srv.DB().Expire("temp", 60)
 	srv.DB().Set("perm", "forever")
 
-	if _, err := srv.Save(makeCommand("SAVE")); err != nil {
+	if _, err := sess.Save(makeCommand("SAVE")); err != nil {
 		t.Fatalf("Save() unexpected error: %v", err)
 	}
 
@@ -132,9 +136,10 @@ func TestSaveCommandWithExpiration(t *testing.T) {
 
 func TestBGSaveCommand(t *testing.T) {
 	srv, rdbPath := newTestServerWithRDB(t)
+	sess := newTestSessionFromServer(srv)
 	srv.DB().Set("bg", "saved")
 
-	res, err := srv.BGSave(makeCommand("BGSAVE"))
+	res, err := sess.BGSave(makeCommand("BGSAVE"))
 	if err != nil {
 		t.Fatalf("BGSave() unexpected error: %v", err)
 	}
@@ -165,8 +170,9 @@ func TestBGSaveCommand(t *testing.T) {
 
 func TestBGSaveCommandEmptyStore(t *testing.T) {
 	srv, rdbPath := newTestServerWithRDB(t)
+	sess := newTestSessionFromServer(srv)
 
-	res, err := srv.BGSave(makeCommand("BGSAVE"))
+	res, err := sess.BGSave(makeCommand("BGSAVE"))
 	if err != nil {
 		t.Fatalf("BGSave() unexpected error: %v", err)
 	}

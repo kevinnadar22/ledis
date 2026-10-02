@@ -8,32 +8,42 @@ import (
 )
 
 func (s *Server) Execute(cmd datatypes.Command) string {
+	return (&Session{srv: s}).Execute(cmd)
+}
+
+func (sess *Session) Execute(cmd datatypes.Command) string {
 	cmdStr := strings.ToUpper(cmd.Cmd.String())
-	var handler func(cmd datatypes.Command) (string, error)
+	var handler func(datatypes.Command) (string, error)
 
 	switch cmdStr {
 	case "PING":
-		handler = s.Ping
+		handler = sess.Ping
 	case "ECHO":
-		handler = s.Echo
+		handler = sess.Echo
 	case "GET":
-		handler = s.Get
+		handler = sess.Get
 	case "SET":
-		handler = s.Set
+		handler = sess.Set
 	case "INCR":
-		handler = s.INCR
+		handler = sess.INCR
 	case "DEL":
-		handler = s.Del
+		handler = sess.Del
 	case "EXISTS":
-		handler = s.Exists
+		handler = sess.Exists
 	case "FLUSHALL":
-		handler = s.FlushAll
+		handler = sess.FlushAll
 	case "TTL":
-		handler = s.TTL
+		handler = sess.TTL
 	case "SAVE":
-		handler = s.Save
+		handler = sess.Save
 	case "BGSAVE":
-		handler = s.BGSave
+		handler = sess.BGSave
+	case "SUBSCRIBE":
+		handler = sess.Subscribe
+	case "PUBLISH":
+		handler = sess.Publish
+	case "UNSUBSCRIBE":
+		handler = sess.Unsubscribe
 	default:
 		return resp.EncodeError("unknown command")
 	}

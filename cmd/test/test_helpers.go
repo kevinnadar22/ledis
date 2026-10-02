@@ -48,7 +48,16 @@ func newTestServerWithRDB(t *testing.T) (*commands.Server, string) {
 	})
 	db := store.NewStore()
 	cfg := newTestConfig(tempRDBPath)
-	return commands.NewServer(db, aof, cfg, newTestRDB()), tempRDBPath
+	return commands.NewServer(db, aof, cfg, newTestRDB(), store.NewPubSub()), tempRDBPath
+}
+
+func newTestSession(t *testing.T) *commands.Session {
+	t.Helper()
+	return newTestSessionFromServer(newTestServer(t))
+}
+
+func newTestSessionFromServer(srv *commands.Server) *commands.Session {
+	return commands.NewSession(nil, srv)
 }
 
 func newTestConfig(rdbPath string) *config.Config {

@@ -121,3 +121,12 @@ func EncodeBulkString(input string) (string) {
 	str := "$" + strconv.Itoa(len(input)) + "\r\n" + input + "\r\n"
 	return str
 }
+
+// for array
+func EncodeArray(input []string) (string) {
+    str := "*" + strconv.Itoa(len(input)) + "\r\n"
+    for _, item := range input {
+        str += "$" + strconv.Itoa(len(item)) + "\r\n" + item + "\r\n"
+    }
+    return str
+}

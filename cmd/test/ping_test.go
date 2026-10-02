@@ -5,9 +5,9 @@ import (
 )
 
 func TestPingCommand(t *testing.T) {
-	srv := newTestServer(t)
+	sess := newTestSession(t)
 	cmd := makeCommand("PING")
-	res, err := srv.Ping(cmd)
+	res, err := sess.Ping(cmd)
 	if err != nil {
 		t.Fatalf("unexpected error: %v", err)
 	}
