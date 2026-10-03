@@ -7,11 +7,17 @@ import (
 	"github.com/kevinnadar22/ledis/internal/resp"
 )
 
+// Execute runs a command on the caller goroutine (e.g. AOF replay before live traffic).
 func (s *Server) Execute(cmd datatypes.Command) string {
-	return (&Session{srv: s}).Execute(cmd)
+	return (&Session{srv: s}).run(cmd)
 }
 
+// Execute enqueues the command on the global worker (serialized with all clients).
 func (sess *Session) Execute(cmd datatypes.Command) string {
+	return sess.enqueue(cmd)
+}
+
+func (sess *Session) run(cmd datatypes.Command) string {
 	cmdStr := strings.ToUpper(cmd.Cmd.String())
 	var handler func(datatypes.Command) (string, error)
 

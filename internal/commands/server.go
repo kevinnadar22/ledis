@@ -12,16 +12,20 @@ type Server struct {
 	config *config.Config
 	rdb *persistence.RDB
 	pubsub *store.PubSub
+	jobs   chan commandJob
 }
 
 func NewServer(db *store.Store, aof *persistence.AOF, config *config.Config, rdb *persistence.RDB, pubsub *store.PubSub) *Server {
-	return &Server{
+	s := &Server{
 		db:  db,
 		aof: aof,
 		config: config,
 		rdb: rdb,
 		pubsub: pubsub,
+		jobs: make(chan commandJob),
 	}
+	s.startWorker()
+	return s
 }
 
 func (s *Server) DB() *store.Store {
