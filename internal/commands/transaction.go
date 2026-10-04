@@ -15,23 +15,17 @@ func (sess *Session) Multi(cmd datatypes.Command) (string, error) {
 }
 
 func (sess *Session) Exec(cmd datatypes.Command) (string, error) {
-
-	endTransaction := func() {
-		sess.trn.active = false
-		sess.trn.multiCmds = []datatypes.Command{}
-		sess.trn.errorFlag = false
-	}
 	
 	if !sess.trn.active {
 		return resp.EncodeError("EXEC without MULTI"), nil
 	}
 	if sess.trn.errorFlag {
-		endTransaction()
+		endTransaction(sess.trn)
 		return resp.EncodeSimpleError("EXECABORT Transaction discarded because of previous errors"), nil
 	}
 
 	queued := sess.trn.multiCmds
-	endTransaction()
+	endTransaction(sess.trn)
 
 	results := []string{}
 	for _, cmd := range queued {
@@ -44,8 +38,12 @@ func (sess *Session) Discard(cmd datatypes.Command) (string, error) {
 	if !sess.trn.active {
 		return resp.EncodeError("DISCARD without MULTI"), nil
 	}
-	sess.trn.active = false
-	sess.trn.multiCmds = []datatypes.Command{}
+	endTransaction(sess.trn)
 	return resp.EncodeSimpleString("OK"), nil
 }
 
+func endTransaction(trn *Transaction) {
+	trn.active = false
+	trn.multiCmds = []datatypes.Command{}
+	trn.errorFlag = false
+}
