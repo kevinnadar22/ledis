@@ -5,16 +5,24 @@ import (
 	"net"
 
 	"github.com/kevinnadar22/ledis/internal/store"
+	"github.com/kevinnadar22/ledis/internal/datatypes"
 )
 
+type Transaction struct {
+	active      bool // is in multi mode
+	multiCmds    []datatypes.Command
+}
 type Session struct {
 	conn         net.Conn
 	srv          *Server
 	pubsubClient *store.Client
+
+	// transaction mode
+	trn *Transaction
 }
 
 func NewSession(conn net.Conn, srv *Server) *Session {
-	return &Session{conn: conn, srv: srv}
+	return &Session{conn: conn, srv: srv, trn: &Transaction{}}
 }
 
 func (sess *Session) Close() {
@@ -24,6 +32,7 @@ func (sess *Session) Close() {
 	sess.srv.pubsub.RemoveClient(sess.pubsubClient)
 	close(sess.pubsubClient.Outgoing)
 	sess.pubsubClient = nil
+	sess.trn = &Transaction{}
 }
 
 func (sess *Session) ensurePubsubClient() error {

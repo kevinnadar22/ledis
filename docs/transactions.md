@@ -1,0 +1,9 @@
+Redis Transactions
+
+A Redis transaction starts with MULTI. After that, every command a client sends is not run right away; it is queued, and the server replies QUEUED. When the client sends EXEC, Redis runs every queued command in order and sends back one reply per command. DISCARD throws the queue away instead. While EXEC is running, no other client's commands can run in between, so the transaction is isolated.
+
+Atomic in Redis does not mean all or nothing. If a command is wrong at queue time, like an unknown command or the wrong number of arguments, EXEC refuses to run anything and replies EXECABORT. But if a command fails while it is running, like INCR on a string, only that one command returns an error and the rest still run. There is no rollback. Redis keeps it this way for simplicity and speed, since runtime errors are almost always bugs in the client's code.
+
+WATCH gives optimistic locking. A client calls WATCH on one or more keys before MULTI. If any watched key changes before EXEC, whether another client wrote to it, it was deleted, its expiry changed, it expired on its own, or even this same client changed it, then EXEC returns a null reply and nothing runs. The client is expected to retry. EXEC and DISCARD both clear all watches automatically, so UNWATCH is only needed when a client gives up before getting to either one.
+
+For Ledis, each connection keeps a flag for whether it is inside MULTI, a queue of commands, an error flag for queue-time errors, and the version of each watched key. Each key in the store gets a version number that goes up on every write, delete, expiry change, actual expiry, and flush. On EXEC, Ledis aborts if the error flag is set, returns null if any watched version changed, and otherwise runs the whole queue under the store lock. The whole block is written to the AOF in one go, and then the queue and watches are cleared.

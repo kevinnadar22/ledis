@@ -5,11 +5,13 @@ import (
 
 	"github.com/kevinnadar22/ledis/internal/datatypes"
 	"github.com/kevinnadar22/ledis/internal/resp"
+	"github.com/kevinnadar22/ledis/internal/utils"
 )
+
 
 // Execute runs a command on the caller goroutine (e.g. AOF replay before live traffic).
 func (s *Server) Execute(cmd datatypes.Command) string {
-	return (&Session{srv: s}).run(cmd)
+	return NewSession(nil, s).run(cmd)
 }
 
 // Execute enqueues the command on the global worker (serialized with all clients).
@@ -20,6 +22,18 @@ func (sess *Session) Execute(cmd datatypes.Command) string {
 func (sess *Session) run(cmd datatypes.Command) string {
 	cmdStr := strings.ToUpper(cmd.Cmd.String())
 	var handler func(datatypes.Command) (string, error)
+
+	// see if trn is active and if the command is a transaction command
+	if sess.trn.active  {
+		if !utils.IsCommandAllowedInTransaction(cmdStr) {
+			return resp.EncodeError("ERR command not allowed in transaction")
+		}
+		if !utils.IsTransactionCommand(cmdStr) {
+			sess.trn.multiCmds = append(sess.trn.multiCmds, cmd)
+			return resp.EncodeSimpleString("QUEUED")
+		}
+		// here cmds like MULTI, EXEC, DISCARD are allowed, it will flow through the switch case below
+	}
 
 	switch cmdStr {
 	case "PING":
@@ -50,6 +64,12 @@ func (sess *Session) run(cmd datatypes.Command) string {
 		handler = sess.Publish
 	case "UNSUBSCRIBE":
 		handler = sess.Unsubscribe
+	case "MULTI":
+		handler = sess.Multi
+	case "EXEC":
+		handler = sess.Exec
+	case "DISCARD":
+		handler = sess.Discard
 	default:
 		return resp.EncodeError("unknown command")
 	}

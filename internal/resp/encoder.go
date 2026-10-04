@@ -122,11 +122,21 @@ func EncodeBulkString(input string) (string) {
 	return str
 }
 
-// for array
+// EncodeArray encodes a RESP array of bulk strings (e.g. pub/sub metadata).
 func EncodeArray(input []string) (string) {
     str := "*" + strconv.Itoa(len(input)) + "\r\n"
     for _, item := range input {
         str += "$" + strconv.Itoa(len(item)) + "\r\n" + item + "\r\n"
     }
     return str
+}
+
+// EncodeArrayOfReplies encodes a RESP array whose elements are already full RESP replies (e.g. EXEC).
+func EncodeArrayOfReplies(replies []string) string {
+	var b strings.Builder
+	fmt.Fprintf(&b, "*%d\r\n", len(replies))
+	for _, reply := range replies {
+		b.WriteString(reply)
+	}
+	return b.String()
 }
