@@ -9,7 +9,6 @@ var transactionCommands = map[string]bool{
 
 var notAllowedCommandsInTransaction = map[string]bool{
 	"SUBSCRIBE": true,
-	"PUBLISH": true,
 	"UNSUBSCRIBE": true,
 }
 
