@@ -22,19 +22,36 @@ func (sess *Session) Execute(cmd datatypes.Command) string {
 func (sess *Session) run(cmd datatypes.Command) string {
 	cmdStr := strings.ToUpper(cmd.Cmd.String())
 	var handler func(datatypes.Command) (string, error)
+	handler = getHandler(sess, cmdStr)
+
 
 	// see if trn is active and if the command is a transaction command
 	if sess.trn.active  {
+		if handler == nil {
+			sess.trn.errorFlag = true
+			return resp.EncodeError("unknown command '" + cmdStr + "'")
+		}
 		if !utils.IsCommandAllowedInTransaction(cmdStr) {
-			return resp.EncodeError("ERR command not allowed in transaction")
+			return resp.EncodeError("command not allowed in transaction")
 		}
 		if !utils.IsTransactionCommand(cmdStr) {
 			sess.trn.multiCmds = append(sess.trn.multiCmds, cmd)
 			return resp.EncodeSimpleString("QUEUED")
 		}
 		// here cmds like MULTI, EXEC, DISCARD are allowed, it will flow through the switch case below
+	} else if handler == nil {
+		return resp.EncodeError("unknown command '" + cmdStr + "'")
 	}
 
+	str, err := handler(cmd)
+	if err != nil {
+		return resp.EncodeError(err.Error())
+	}
+	return str
+}
+
+func getHandler(sess *Session, cmdStr string) func(datatypes.Command) (string, error) {
+	var handler func(datatypes.Command) (string, error)
 	switch cmdStr {
 	case "PING":
 		handler = sess.Ping
@@ -71,11 +88,7 @@ func (sess *Session) run(cmd datatypes.Command) string {
 	case "DISCARD":
 		handler = sess.Discard
 	default:
-		return resp.EncodeError("unknown command")
+		return nil
 	}
-	str, err := handler(cmd)
-	if err != nil {
-		return resp.EncodeError(err.Error())
-	}
-	return str
+	return handler
 }

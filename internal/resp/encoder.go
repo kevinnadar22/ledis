@@ -110,6 +110,11 @@ func EncodeError(input string) (string) {
     return str
 }
 
+// EncodeSimpleError encodes a RESP error line as "-<message>\r\n" (e.g. -EXECABORT ...).
+func EncodeSimpleError(message string) string {
+	return "-" + message + "\r\n"
+}
+
 func EncodeInteger(input int64) (string) {
     return ":" + strconv.FormatInt(input,10) + "\r\n"
 }

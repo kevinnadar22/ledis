@@ -11,6 +11,7 @@ import (
 type Transaction struct {
 	active      bool // is in multi mode
 	multiCmds    []datatypes.Command
+	errorFlag    bool
 }
 type Session struct {
 	conn         net.Conn
