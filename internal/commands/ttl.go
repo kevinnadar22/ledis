@@ -8,6 +8,8 @@ import (
 )
 
 func (sess *Session) TTL(cmd datatypes.Command) (string, error) {
+	// TTL: O(1) time complexity
+	// Description: Returns the remaining time to live of a key in seconds
 	if len(cmd.Args) != 1 {
 		return "", errors.New("wrong number of arguments for 'ttl' command")
 	}

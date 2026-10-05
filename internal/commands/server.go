@@ -12,7 +12,9 @@ type Server struct {
 	config *config.Config
 	rdb *persistence.RDB
 	pubsub *store.PubSub
-	jobs   chan commandJob
+	jobs   chan commandJob // channel to send commands to the worker
+
+	watchedKeys map[string]map[*Session]struct{}
 }
 
 func NewServer(db *store.Store, aof *persistence.AOF, config *config.Config, rdb *persistence.RDB, pubsub *store.PubSub) *Server {
@@ -23,6 +25,7 @@ func NewServer(db *store.Store, aof *persistence.AOF, config *config.Config, rdb
 		rdb: rdb,
 		pubsub: pubsub,
 		jobs: make(chan commandJob),
+		watchedKeys: make(map[string]map[*Session]struct{}),
 	}
 	s.startWorker()
 	return s

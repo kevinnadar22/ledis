@@ -10,3 +10,6 @@ For Ledis, each connection keeps a flag for whether it is inside MULTI, a queue 
 
 
 In Redis, if a command is invalid or the wrong number of arguments is given while queuing commands after MULTI, Redis returns an error immediately and does not queue that command. Later, when EXEC is called, if any command in the transaction failed to queue (a static error), EXEC will reply with EXECABORT and abort the entire transaction; none of the queued commands will be executed. However, if a command encounters a runtime error during execution (like running INCR on a string), only that command returns an error, and the rest continue as normal; there is no rollback. This ensures that static errors abort the whole transaction, while runtime errors only affect the specific command.
+
+WATCH/UNWATCH Command - Optmistic Locking means that the client will try to execute the transaction and if the data has changed, the transaction will be aborted. Watch command will watch the key and if the key is modified, the transaction will be aborted. Unwatch command will unwatch the key and the transaction will be executed.
+SO if a multi returned null, the transaction will be aborted. The client will need to retry the transaction till it succeeds.

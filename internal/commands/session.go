@@ -11,8 +11,10 @@ import (
 type Transaction struct {
 	active      bool // is in multi mode
 	multiCmds    []datatypes.Command
-	errorFlag    bool
+	errorFlag    bool // EXECABORT, error during trx
+	dirty        bool // watched key being invalidated
 }
+
 type Session struct {
 	conn         net.Conn
 	srv          *Server
@@ -27,6 +29,7 @@ func NewSession(conn net.Conn, srv *Server) *Session {
 }
 
 func (sess *Session) Close() {
+	sess.clearWatches()
 	if sess.pubsubClient == nil {
 		return
 	}

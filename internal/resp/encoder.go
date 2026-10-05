@@ -145,3 +145,7 @@ func EncodeArrayOfReplies(replies []string) string {
 	}
 	return b.String()
 }
+
+func EncodeNil() string{
+	return "$-1\r\n"
+}

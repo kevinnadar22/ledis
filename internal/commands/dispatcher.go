@@ -8,7 +8,6 @@ import (
 	"github.com/kevinnadar22/ledis/internal/utils"
 )
 
-
 // Execute runs a command on the caller goroutine (e.g. AOF replay before live traffic).
 func (s *Server) Execute(cmd datatypes.Command) string {
 	return NewSession(nil, s).run(cmd)
@@ -24,9 +23,9 @@ func (sess *Session) run(cmd datatypes.Command) string {
 	var handler func(datatypes.Command) (string, error)
 	handler = getHandler(sess, cmdStr)
 
-
+	// MULTI/EXEC/DISCARD
 	// see if trn is active and if the command is a transaction command
-	if sess.trn.active  {
+	if sess.trn.active {
 		if handler == nil {
 			sess.trn.errorFlag = true
 			return resp.EncodeError("unknown command '" + cmdStr + "'")
@@ -42,6 +41,17 @@ func (sess *Session) run(cmd datatypes.Command) string {
 		// here cmds like MULTI, EXEC, DISCARD are allowed, it will flow through the switch case below
 	} else if handler == nil {
 		return resp.EncodeError("unknown command '" + cmdStr + "'")
+	}
+
+	// WATCH/UNWATCH
+	// if it is a mutating command, check any session watching this key, if yes make all the sessions dirty
+	if len(cmd.Args) > 0 && utils.IsMutatingCommand(cmdStr) {
+		K := cmd.Args[0].String()
+		if _, ok := sess.srv.watchedKeys[K]; ok {
+			for session := range sess.srv.watchedKeys[K] {
+				session.trn.dirty = true
+			}
+		}
 	}
 
 	str, err := handler(cmd)
@@ -88,6 +98,10 @@ func getHandler(sess *Session, cmdStr string) func(datatypes.Command) (string, e
 		handler = sess.Exec
 	case "DISCARD":
 		handler = sess.Discard
+	case "WATCH":
+		handler = sess.Watch
+	case "UNWATCH":
+		handler = sess.Unwatch
 	default:
 		return nil
 	}
