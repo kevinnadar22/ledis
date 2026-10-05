@@ -45,7 +45,14 @@ func (sess *Session) run(cmd datatypes.Command) string {
 
 	// WATCH/UNWATCH
 	// if it is a mutating command, check any session watching this key, if yes make all the sessions dirty
-	if len(cmd.Args) > 0 && utils.IsMutatingCommand(cmdStr) {
+	if utils.IsMutatingCommand(cmdStr) {
+		if len(cmd.Args) == 0 {
+			// if flushall, clear all the watches
+			if cmdStr == "FLUSHALL" {
+				sess.clearWatches()
+			}
+			return resp.EncodeError("wrong number of arguments for " + cmdStr)
+		}
 		K := cmd.Args[0].String()
 		if _, ok := sess.srv.watchedKeys[K]; ok {
 			for session := range sess.srv.watchedKeys[K] {
