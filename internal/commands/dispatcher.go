@@ -49,14 +49,11 @@ func (sess *Session) run(cmd datatypes.Command) string {
 		if len(cmd.Args) == 0 {
 			// if flushall, clear all the watches
 			if cmdStr == "FLUSHALL" {
-				sess.clearAllWatches()
+				sess.MarkAllWatchesDirty()
 			} 
-		}
-		K := cmd.Args[0].String()
-		if _, ok := sess.srv.watchedKeys[K]; ok {
-			for session := range sess.srv.watchedKeys[K] {
-				session.trn.dirty = true
-			}
+		} else {
+			K := cmd.Args[0].String()
+			sess.MarkWatchesDirty(K)
 		}
 	}
 

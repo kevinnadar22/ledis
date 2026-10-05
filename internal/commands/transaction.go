@@ -85,8 +85,20 @@ func (sess *Session) clearWatches() {
 	}
 }
 
-func (sess *Session) clearAllWatches() {
-	sess.srv.watchedKeys = make(map[string]map[*Session]struct{})
+func (sess *Session) MarkAllWatchesDirty() {
+	for _, sessions := range sess.srv.watchedKeys {
+		for session := range sessions {
+			session.trn.dirty = true
+		}
+	}
+}
+
+func (sess *Session) MarkWatchesDirty(key string) {
+	if _, ok := sess.srv.watchedKeys[key]; ok {
+		for session := range sess.srv.watchedKeys[key] {
+			session.trn.dirty = true
+		}
+	}
 }
 
 func (sess *Session) endTransaction() {
