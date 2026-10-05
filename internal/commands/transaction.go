@@ -85,6 +85,10 @@ func (sess *Session) clearWatches() {
 	}
 }
 
+func (sess *Session) clearAllWatches() {
+	sess.srv.watchedKeys = make(map[string]map[*Session]struct{})
+}
+
 func (sess *Session) endTransaction() {
 	sess.trn.active = false
 	sess.trn.multiCmds = []datatypes.Command{}

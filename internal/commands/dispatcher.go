@@ -49,9 +49,8 @@ func (sess *Session) run(cmd datatypes.Command) string {
 		if len(cmd.Args) == 0 {
 			// if flushall, clear all the watches
 			if cmdStr == "FLUSHALL" {
-				sess.clearWatches()
-			}
-			return resp.EncodeError("wrong number of arguments for " + cmdStr)
+				sess.clearAllWatches()
+			} 
 		}
 		K := cmd.Args[0].String()
 		if _, ok := sess.srv.watchedKeys[K]; ok {
