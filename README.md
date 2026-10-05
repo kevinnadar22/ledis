@@ -5,7 +5,7 @@
 Clients talk to Ledis over **TCP** using **[RESP](https://redis.io/docs/reference/protocol-spec/)** (Redis Serialization Protocol)—the same framing `redis-cli` uses—so you can build and debug with familiar tools while owning every layer of the stack.
 
 
-**Current progress:** 🚧 **Level 5** — pub/sub is in; **MULTI/EXEC-style transactions** are next. Levels **1–3** and the pub/sub slice of **5** are ✅. Levels **4** and **6–10** are still on the board.
+**Current progress:** ✅ **Level 5** complete (pub/sub + transactions with `WATCH`). **Level 4** and **6–10** are next.
 
 See the roadmap table for the full picture.
 
@@ -17,7 +17,7 @@ See the roadmap table for the full picture.
 | 2 | `SET`, `GET`, `DEL`, `EXISTS` | ✅ Done |
 | 3 | Expiration, `TTL`, persistence (AOF) | ✅ Done |
 | 4 | Lists, hashes, sets | ⬜ Not started |
-| 5 | Pub/Sub, transactions | 🚧 Pub/Sub done · transactions pending |
+| 5 | Pub/Sub, transactions | ✅ Done |
 | 6 | Replication | ⬜ Not started |
 | 7 | Streams | ⬜ Not started |
 | 8 | Memory optimization | ⬜ Not started |
@@ -32,7 +32,8 @@ See the roadmap table for the full picture.
 | `GET`, `SET`, `DEL`, `EXISTS`, `INCR`, `FLUSHALL` | Level 2 (+ extras) |
 | `TTL`, AOF replay | Level 3 |
 | `SAVE`, `BGSAVE` | RDB snapshots |
-| `SUBSCRIBE`, `UNSUBSCRIBE`, `PUBLISH` | Level 5 |
+| `SUBSCRIBE`, `UNSUBSCRIBE`, `PUBLISH` | Level 5 (pub/sub) |
+| `MULTI`, `EXEC`, `DISCARD`, `WATCH`, `UNWATCH` | Level 5 (transactions) |
 
 ## Requirements
 
@@ -130,4 +131,4 @@ docs/           Notes (e.g. pub/sub, sockets)
 
 ## License
 
-See repository defaults; add a `LICENSE` file if you publish this project.
+[MIT](LICENSE)
