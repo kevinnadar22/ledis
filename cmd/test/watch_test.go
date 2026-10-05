@@ -108,6 +108,108 @@ func TestExecAppliesWhenWatchedKeyUnchanged(t *testing.T) {
 	}
 }
 
+func TestExecNilWhenOtherClientDeletesWatchedKey(t *testing.T) {
+	srv := newTestServer(t)
+	watcher := newTestSessionFromServer(srv)
+	other := newTestSessionFromServer(srv)
+
+	other.Execute(makeCommand("SET", "foo", "v"))
+	watcher.Execute(makeCommand("WATCH", "foo"))
+	watcher.Execute(makeCommand("MULTI"))
+	watcher.Execute(makeCommand("SET", "foo", "from-tx"))
+
+	other.Execute(makeCommand("DEL", "foo"))
+
+	got := watcher.Execute(makeCommand("EXEC"))
+	if got != resp.EncodeNil() {
+		t.Fatalf("EXEC: got %q, want %q", got, resp.EncodeNil())
+	}
+}
+
+func TestExecNilWhenOtherClientIncrementsWatchedKey(t *testing.T) {
+	srv := newTestServer(t)
+	watcher := newTestSessionFromServer(srv)
+	other := newTestSessionFromServer(srv)
+
+	other.Execute(makeCommand("SET", "counter", "1"))
+	watcher.Execute(makeCommand("WATCH", "counter"))
+	watcher.Execute(makeCommand("MULTI"))
+	watcher.Execute(makeCommand("SET", "counter", "99"))
+
+	other.Execute(makeCommand("INCR", "counter"))
+
+	got := watcher.Execute(makeCommand("EXEC"))
+	if got != resp.EncodeNil() {
+		t.Fatalf("EXEC: got %q, want %q", got, resp.EncodeNil())
+	}
+	if got := watcher.Execute(makeCommand("GET", "counter")); got != "$1\r\n2\r\n" {
+		t.Fatalf("GET counter: got %q", got)
+	}
+}
+
+func TestExecAppliesWhenMutationIsOnUnwatchedKey(t *testing.T) {
+	srv := newTestServer(t)
+	watcher := newTestSessionFromServer(srv)
+	other := newTestSessionFromServer(srv)
+
+	watcher.Execute(makeCommand("WATCH", "foo"))
+	watcher.Execute(makeCommand("MULTI"))
+	watcher.Execute(makeCommand("SET", "foo", "kept"))
+
+	other.Execute(makeCommand("SET", "bar", "other"))
+
+	got := watcher.Execute(makeCommand("EXEC"))
+	want := resp.EncodeArrayOfReplies([]string{"+OK\r\n"})
+	if got != want {
+		t.Fatalf("EXEC: got %q, want %q", got, want)
+	}
+}
+
+func TestExecNilWhenOtherClientFlushAll(t *testing.T) {
+	srv := newTestServer(t)
+	watcher := newTestSessionFromServer(srv)
+	other := newTestSessionFromServer(srv)
+
+	other.Execute(makeCommand("SET", "foo", "v"))
+	watcher.Execute(makeCommand("WATCH", "foo"))
+	watcher.Execute(makeCommand("MULTI"))
+	watcher.Execute(makeCommand("SET", "foo", "from-tx"))
+
+	other.Execute(makeCommand("FLUSHALL"))
+
+	got := watcher.Execute(makeCommand("EXEC"))
+	if got != resp.EncodeNil() {
+		t.Fatalf("EXEC: got %q, want %q", got, resp.EncodeNil())
+	}
+}
+
+func TestExecNilWhenFlushAllAndMultipleWatchersOnDifferentKeys(t *testing.T) {
+	srv := newTestServer(t)
+	watchA := newTestSessionFromServer(srv)
+	watchB := newTestSessionFromServer(srv)
+	other := newTestSessionFromServer(srv)
+
+	other.Execute(makeCommand("SET", "a", "1"))
+	other.Execute(makeCommand("SET", "b", "2"))
+
+	watchA.Execute(makeCommand("WATCH", "a"))
+	watchA.Execute(makeCommand("MULTI"))
+	watchA.Execute(makeCommand("SET", "a", "tx-a"))
+
+	watchB.Execute(makeCommand("WATCH", "b"))
+	watchB.Execute(makeCommand("MULTI"))
+	watchB.Execute(makeCommand("SET", "b", "tx-b"))
+
+	other.Execute(makeCommand("FLUSHALL"))
+
+	if got := watchA.Execute(makeCommand("EXEC")); got != resp.EncodeNil() {
+		t.Fatalf("watchA EXEC: got %q", got)
+	}
+	if got := watchB.Execute(makeCommand("EXEC")); got != resp.EncodeNil() {
+		t.Fatalf("watchB EXEC: got %q", got)
+	}
+}
+
 // UNWATCH should only drop the current client's watches, not every client on the server.
 func TestUnwatchOnlyAffectsCurrentSession(t *testing.T) {
 	srv := newTestServer(t)
