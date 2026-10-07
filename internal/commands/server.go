@@ -1,16 +1,16 @@
 package commands
 
 import (
+	"github.com/kevinnadar22/ledis/internal/config"
 	"github.com/kevinnadar22/ledis/internal/persistence"
 	"github.com/kevinnadar22/ledis/internal/store"
-	"github.com/kevinnadar22/ledis/internal/config"
 )
 
 type Server struct {
-	db  *store.Store
-	aof *persistence.AOF
+	db     *store.Store
+	aof    *persistence.AOF
 	config *config.Config
-	rdb *persistence.RDB
+	rdb    *persistence.RDB
 	pubsub *store.PubSub
 	jobs   chan commandJob // channel to send commands to the worker
 
@@ -19,12 +19,12 @@ type Server struct {
 
 func NewServer(db *store.Store, aof *persistence.AOF, config *config.Config, rdb *persistence.RDB, pubsub *store.PubSub) *Server {
 	s := &Server{
-		db:  db,
-		aof: aof,
-		config: config,
-		rdb: rdb,
-		pubsub: pubsub,
-		jobs: make(chan commandJob),
+		db:          db,
+		aof:         aof,
+		config:      config,
+		rdb:         rdb,
+		pubsub:      pubsub,
+		jobs:        make(chan commandJob),
 		watchedKeys: make(map[string]map[*Session]struct{}),
 	}
 	s.startWorker()

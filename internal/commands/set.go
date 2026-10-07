@@ -11,7 +11,7 @@ import (
 )
 
 type SetOptions struct {
-    EX *int64
+	EX *int64
 	NX *bool
 	XX *bool
 }
@@ -20,7 +20,7 @@ func ParseSetOptions(cmd datatypes.Command) (SetOptions, error) {
 	var options SetOptions
 	for i := 2; i < len(cmd.Args); i++ {
 		arg := cmd.Args[i]
-		switch strings.ToUpper(*arg.Str){
+		switch strings.ToUpper(*arg.Str) {
 		case "EX":
 			if options.EX != nil {
 				return options, errors.New("duplicate option")
@@ -34,11 +34,11 @@ func ParseSetOptions(cmd datatypes.Command) (SetOptions, error) {
 			if err != nil {
 				return options, errors.New("invalid argument for 'EX' option")
 			}
-			
+
 			if val <= 0 {
 				return options, errors.New("invalid argument for 'EX' option")
 			}
-			
+
 			options.EX = &val
 			i++
 		case "NX":
@@ -67,7 +67,7 @@ func (sess *Session) Set(cmd datatypes.Command) (string, error) {
 
 	var (
 		options SetOptions
-		err error
+		err     error
 	)
 
 	if len(cmd.Args) > 2 {
@@ -89,9 +89,8 @@ func (sess *Session) Set(cmd datatypes.Command) (string, error) {
 	sess.srv.db.Set(k, v)
 
 	if options.EX != nil {
-		sess.srv.db.Expire(k,  *options.EX)
+		sess.srv.db.Expire(k, *options.EX)
 	}
-
 
 	err = sess.srv.aof.Append([]byte(cmd.RawContent))
 	if err != nil {

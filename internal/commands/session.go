@@ -4,15 +4,15 @@ import (
 	"errors"
 	"net"
 
-	"github.com/kevinnadar22/ledis/internal/store"
 	"github.com/kevinnadar22/ledis/internal/datatypes"
+	"github.com/kevinnadar22/ledis/internal/store"
 )
 
 type Transaction struct {
-	active      bool // is in multi mode
-	multiCmds    []datatypes.Command
-	errorFlag    bool // EXECABORT, error during trx
-	dirty        bool // watched key being invalidated
+	active    bool // is in multi mode
+	multiCmds []datatypes.Command
+	errorFlag bool // EXECABORT, error during trx
+	dirty     bool // watched key being invalidated
 }
 
 type Session struct {

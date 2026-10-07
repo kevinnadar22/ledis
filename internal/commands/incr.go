@@ -2,9 +2,9 @@ package commands
 
 import (
 	"errors"
-	"log"
 	"github.com/kevinnadar22/ledis/internal/datatypes"
 	"github.com/kevinnadar22/ledis/internal/resp"
+	"log"
 )
 
 func (sess *Session) INCR(cmd datatypes.Command) (string, error) {

@@ -16,18 +16,18 @@ var Magic = []byte("REDISRDB")
 const Version = byte(1)
 
 type RDB struct {
-    mu      sync.Mutex
-    saving  bool
+	mu     sync.Mutex
+	saving bool
 }
 
 func NewRDB() *RDB {
 	return &RDB{
-		mu:      sync.Mutex{},
-		saving:  false,
+		mu:     sync.Mutex{},
+		saving: false,
 	}
 }
 
-func (r *RDB) BGSave(path string, entries []datatypes.RDBEntry) ( error) {
+func (r *RDB) BGSave(path string, entries []datatypes.RDBEntry) error {
 	if r.saving {
 		return fmt.Errorf("already saving")
 	}
@@ -40,7 +40,7 @@ func (r *RDB) BGSave(path string, entries []datatypes.RDBEntry) ( error) {
 	return nil
 }
 
-func (r *RDB) Save(path string, entries []datatypes.RDBEntry) ( error) {
+func (r *RDB) Save(path string, entries []datatypes.RDBEntry) error {
 	r.mu.Lock()
 	defer r.mu.Unlock()
 	if r.saving {
@@ -85,7 +85,7 @@ func (r *RDB) Save(path string, entries []datatypes.RDBEntry) ( error) {
 		return err
 	}
 
-	return  nil
+	return nil
 }
 
 func (r *RDB) Load(path string) ([]datatypes.RDBEntry, error) {

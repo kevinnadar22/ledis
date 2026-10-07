@@ -41,7 +41,7 @@ func main() {
 
 		b := make([]byte, 1024)
 		n, err := conn.Read(b)
-		
+
 		if err != nil {
 			panic(err)
 		}

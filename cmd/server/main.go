@@ -32,10 +32,10 @@ func main() {
 		log.Fatal("Error loading config:", err)
 		return
 	}
-	
+
 	// create AOF if append only is enabled
 	var aof *persistence.AOF
-	
+
 	if cfg.AppendOnly {
 		aof, err = persistence.NewAOF("./appendonly.aof", cfg.FsyncPolicy)
 		if err != nil {

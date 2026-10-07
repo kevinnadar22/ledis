@@ -19,10 +19,10 @@ const (
 )
 
 type Value struct {
-	Type ResType
-	Integer 	int64
-	Str 		*string
-	Array 		[]Value
+	Type    ResType
+	Integer int64
+	Str     *string
+	Array   []Value
 }
 
 func (v Value) String() string {
@@ -57,7 +57,7 @@ func (v Value) String() string {
 }
 
 type Command struct {
-	Cmd Value
-	Args []Value
+	Cmd        Value
+	Args       []Value
 	RawContent string
 }

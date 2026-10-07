@@ -25,13 +25,13 @@ func TestSplitter(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			got, err := Splitter(tt.input)
-			
+
 			// If we expected an error and didn't get one, or vice-versa
 			if (err != nil) != tt.wantErr {
 				t.Errorf("Splitter() error = %v, wantErr %v", err, tt.wantErr)
 				return
 			}
-			
+
 			// Check if the slices match
 			if !reflect.DeepEqual(got, tt.want) && !tt.wantErr {
 				t.Errorf("Splitter() = %v, want %v", got, tt.want)

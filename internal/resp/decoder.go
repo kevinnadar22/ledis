@@ -58,8 +58,8 @@ func DecodeSimpleError(cmd string, start_byte int) (datatypes.Value, datatypes.B
 
 	// bytes consumed would be end-start+2 (include the \r\n)
 	return datatypes.Value{
-		Type:   datatypes.SimpleError,
-		Str:    &str,
+		Type: datatypes.SimpleError,
+		Str:  &str,
 	}, datatypes.ByteConsumed(end - start_byte + 2), nil
 }
 
@@ -75,7 +75,7 @@ func DecodeBulkStrings(cmd string, start_byte int) (datatypes.Value, datatypes.B
 		return datatypes.Value{}, 4, nil
 	}
 
-	string_length, err := strconv.Atoi(cmd[start_byte+1:end])
+	string_length, err := strconv.Atoi(cmd[start_byte+1 : end])
 
 	if err != nil {
 		return datatypes.Value{}, 0, err
@@ -103,7 +103,7 @@ func DecodeInteger(cmd string, start_byte int) (datatypes.Value, datatypes.ByteC
 		return datatypes.Value{}, 0, nil
 	}
 
-	integer, err := strconv.Atoi(cmd[start_byte+1:end])
+	integer, err := strconv.Atoi(cmd[start_byte+1 : end])
 
 	if err != nil {
 		return datatypes.Value{}, 0, err
@@ -131,7 +131,7 @@ func DecodeArray(cmd string, start_byte int) (datatypes.Value, datatypes.ByteCon
 		return datatypes.Value{}, 0, errors.New("invalid array")
 	}
 
-	array_length, err := strconv.Atoi(cmd[start_byte+1:end])
+	array_length, err := strconv.Atoi(cmd[start_byte+1 : end])
 
 	if err != nil {
 		return datatypes.Value{}, 0, errors.New("invalid array length")

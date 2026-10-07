@@ -15,9 +15,9 @@ import (
 type FsyncPolicy int
 
 const (
-    FsyncAlways FsyncPolicy = iota
-    FsyncEverySecond
-    FsyncNo
+	FsyncAlways FsyncPolicy = iota
+	FsyncEverySecond
+	FsyncNo
 )
 
 type AOF struct {
@@ -33,11 +33,11 @@ func NewAOF(path string, policy FsyncPolicy) (*AOF, error) {
 	if err != nil {
 		return nil, err
 	}
-	
+
 	a := &AOF{
-		file: file,
+		file:        file,
 		fsyncPolicy: policy,
-		done: make(chan struct{}),
+		done:        make(chan struct{}),
 	}
 
 	// start background sync goroutine
@@ -74,7 +74,7 @@ func (a *AOF) Append(respCmd []byte) error {
 	}
 
 	// sync
-	
+
 	if a.fsyncPolicy == FsyncAlways {
 		err = a.file.Sync()
 		if err != nil {
@@ -86,13 +86,13 @@ func (a *AOF) Append(respCmd []byte) error {
 }
 
 func (a *AOF) Close() error {
-    close(a.done)
+	close(a.done)
 
-    a.mu.Lock()
-    defer a.mu.Unlock()
+	a.mu.Lock()
+	defer a.mu.Unlock()
 
-    err := a.file.Sync()
-    if err != nil {
+	err := a.file.Sync()
+	if err != nil {
 		return err
 	}
 
@@ -105,10 +105,9 @@ func (a *AOF) Close() error {
 	return nil
 }
 
-
 func (a *AOF) Replay(handler func(cmd datatypes.Command) error) error {
 	// we need to read the file buffer by buffer, call the decode function and update the bytes consumed, if error, skip that and continue
-	// since we are replaying, we don't need to write to AOF 
+	// since we are replaying, we don't need to write to AOF
 	a.replaying = true
 	defer func() {
 		a.replaying = false
@@ -116,8 +115,7 @@ func (a *AOF) Replay(handler func(cmd datatypes.Command) error) error {
 
 	reader := bufio.NewReader(a.file)
 
-
-	// while 
+	// while
 	for {
 		cmd_line, err := resp.DecodeBulkStringsArrayFromReader(reader)
 
@@ -135,7 +133,7 @@ func (a *AOF) Replay(handler func(cmd datatypes.Command) error) error {
 		for _, arg := range cmd.Args {
 			fmt.Printf("Arg: %q\n", *arg.Str)
 		}
-		
+
 		if err != nil {
 			fmt.Println("Error decoding command:", err)
 			continue
@@ -147,21 +145,21 @@ func (a *AOF) Replay(handler func(cmd datatypes.Command) error) error {
 }
 
 func (a *AOF) startSyncer() {
-    ticker := time.NewTicker(time.Second)
+	ticker := time.NewTicker(time.Second)
 
-    go func() {
-        defer ticker.Stop()
+	go func() {
+		defer ticker.Stop()
 
-        for range ticker.C {
-            select {
+		for range ticker.C {
+			select {
 			case <-ticker.C:
-                a.mu.Lock()
-                _ = a.file.Sync()
-                a.mu.Unlock()
+				a.mu.Lock()
+				_ = a.file.Sync()
+				a.mu.Unlock()
 
-            case <-a.done:
-                return
+			case <-a.done:
+				return
 			}
-        }
-    }()
+		}
+	}()
 }

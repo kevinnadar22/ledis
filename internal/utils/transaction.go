@@ -1,9 +1,9 @@
 package utils
 
 var transactionCommands = map[string]bool{
-	"MULTI":    true,
-	"EXEC":     true,
-	"DISCARD":  true,
+	"MULTI":   true,
+	"EXEC":    true,
+	"DISCARD": true,
 }
 
 var notAllowedCommandsInTransaction = map[string]bool{

@@ -30,7 +30,7 @@ func (sess *Session) run(cmd datatypes.Command) string {
 			sess.trn.errorFlag = true
 			return resp.EncodeError("unknown command '" + cmdStr + "'")
 		}
-		if !utils.IsCommandAllowedInTransaction(cmdStr)  {
+		if !utils.IsCommandAllowedInTransaction(cmdStr) {
 			sess.trn.errorFlag = true
 			return resp.EncodeError("command not allowed in transaction")
 		}

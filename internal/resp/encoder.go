@@ -8,9 +8,8 @@ import (
 	"strings"
 )
 
-
 func Splitter(input string) ([]string, error) {
-    var args []string
+	var args []string
 
 	var t string
 	var quote_state bool
@@ -19,14 +18,14 @@ func Splitter(input string) ([]string, error) {
 		return []string{}, nil
 	}
 
-    for i, v := range input {
+	for i, v := range input {
 		var prev_char byte
 		if i != 0 {
 			prev_char = input[i-1]
 		}
 
 		// if the current char is a space and we are not in a quote state, add the current string to args
-		if v == ' ' && quote_state != true{
+		if v == ' ' && quote_state != true {
 			// skip if the previous char is also a space
 			if prev_char != byte(' ') {
 				args = append(args, t)
@@ -64,8 +63,8 @@ func Splitter(input string) ([]string, error) {
 			continue // don't add the quote itself
 		}
 
-        t += string(v)
-    }
+		t += string(v)
+	}
 
 	if t != "" {
 		args = append(args, t)
@@ -78,36 +77,33 @@ func Splitter(input string) ([]string, error) {
 	return args, nil
 }
 
-
 func Encode(input string) string {
-    var b strings.Builder
-    args, err := Splitter(input)
+	var b strings.Builder
+	args, err := Splitter(input)
 
-    if err != nil {
-        panic(err)
-    }
+	if err != nil {
+		panic(err)
+	}
 
-    fmt.Fprintf(&b, "*%d\r\n", len(args))
+	fmt.Fprintf(&b, "*%d\r\n", len(args))
 
-    for _, arg := range args {
-        fmt.Fprintf(&b, "$%d\r\n%s\r\n", len(arg), arg)
-    }
+	for _, arg := range args {
+		fmt.Fprintf(&b, "$%d\r\n%s\r\n", len(arg), arg)
+	}
 
-    fmt.Println(args)
+	fmt.Println(args)
 
-    return b.String()
+	return b.String()
 }
 
-
-
-func EncodeSimpleString(input string) (string) {
-    str := "+" + input + "\r\n"
-    return str
+func EncodeSimpleString(input string) string {
+	str := "+" + input + "\r\n"
+	return str
 }
 
-func EncodeError(input string) (string) {
-    str := "-ERR " + input + "\r\n"
-    return str
+func EncodeError(input string) string {
+	str := "-ERR " + input + "\r\n"
+	return str
 }
 
 // EncodeSimpleError encodes a RESP error line as "-<message>\r\n" (e.g. -EXECABORT ...).
@@ -115,11 +111,11 @@ func EncodeSimpleError(message string) string {
 	return "-" + message + "\r\n"
 }
 
-func EncodeInteger(input int64) (string) {
-    return ":" + strconv.FormatInt(input,10) + "\r\n"
+func EncodeInteger(input int64) string {
+	return ":" + strconv.FormatInt(input, 10) + "\r\n"
 }
 
-func EncodeBulkString(input string) (string) {
+func EncodeBulkString(input string) string {
 	if input == "" {
 		return "$-1\r\n"
 	}
@@ -128,12 +124,12 @@ func EncodeBulkString(input string) (string) {
 }
 
 // EncodeArray encodes a RESP array of bulk strings (e.g. pub/sub metadata).
-func EncodeArray(input []string) (string) {
-    str := "*" + strconv.Itoa(len(input)) + "\r\n"
-    for _, item := range input {
-        str += "$" + strconv.Itoa(len(item)) + "\r\n" + item + "\r\n"
-    }
-    return str
+func EncodeArray(input []string) string {
+	str := "*" + strconv.Itoa(len(input)) + "\r\n"
+	for _, item := range input {
+		str += "$" + strconv.Itoa(len(item)) + "\r\n" + item + "\r\n"
+	}
+	return str
 }
 
 // EncodeArrayOfReplies encodes a RESP array whose elements are already full RESP replies (e.g. EXEC).
@@ -146,6 +142,6 @@ func EncodeArrayOfReplies(replies []string) string {
 	return b.String()
 }
 
-func EncodeNil() string{
+func EncodeNil() string {
 	return "$-1\r\n"
 }

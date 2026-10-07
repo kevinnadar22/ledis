@@ -90,7 +90,7 @@ func (s *Store) INCR(key string) (int64, error) {
 
 	int_val, err := strconv.Atoi(val)
 	if err != nil {
-		return 0, errors.New("wrong datatype")
+		return 0, errors.New("value is not an integer or out of range")
 	}
 
 	int_val++
@@ -121,7 +121,6 @@ func (s *Store) TTL(key string) int64 {
 
 	return utils.RemainingTTL(exp)
 }
-
 
 func (s *Store) RestoreSnapshot(entries []datatypes.RDBEntry) {
 	s.mu.Lock()

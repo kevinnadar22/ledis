@@ -7,7 +7,7 @@ import (
 )
 
 func Splitter(input string) ([]string, error) {
-    var args []string
+	var args []string
 
 	var t string
 	var quote_state bool
@@ -16,14 +16,14 @@ func Splitter(input string) ([]string, error) {
 		return []string{}, nil
 	}
 
-    for i, v := range input {
+	for i, v := range input {
 		var prev_char byte
 		if i != 0 {
 			prev_char = input[i-1]
 		}
 
 		// if the current char is a space and we are not in a quote state, add the current string to args
-		if v == ' ' && quote_state != true{
+		if v == ' ' && quote_state != true {
 			// skip if the previous char is also a space
 			if prev_char != byte(' ') {
 				args = append(args, t)
@@ -61,8 +61,8 @@ func Splitter(input string) ([]string, error) {
 			continue // don't add the quote itself
 		}
 
-        t += string(v)
-    }
+		t += string(v)
+	}
 
 	if t != "" {
 		args = append(args, t)
@@ -74,7 +74,6 @@ func Splitter(input string) ([]string, error) {
 
 	return args, nil
 }
-
 
 func main() {
 	input := `SET msg "hello \"world\""`

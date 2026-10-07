@@ -5,7 +5,6 @@ import (
 	"github.com/kevinnadar22/ledis/internal/resp"
 )
 
-
 func (sess *Session) Multi(cmd datatypes.Command) (string, error) {
 	if sess.trn.active {
 		return resp.EncodeError("MULTI calls can not be nested"), nil
