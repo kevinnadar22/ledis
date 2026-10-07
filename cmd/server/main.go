@@ -32,6 +32,7 @@ func main() {
 		log.Fatal("Error loading config:", err)
 		return
 	}
+	resp.SetMaxBulkStringSize(cfg.MaxBulkStringSize)
 
 	// create AOF if append only is enabled
 	var aof *persistence.AOF
@@ -95,21 +96,27 @@ func main() {
 
 		fmt.Println("New connection:", conn.RemoteAddr())
 
-		go handleConnection(conn, srv)
+		go handleConnection(conn, srv, cfg)
 	}
 }
 
-func handleConnection(conn net.Conn, srv *commands.Server) {
+func handleConnection(conn net.Conn, srv *commands.Server, cfg *config.Config) {
 	sess := commands.NewSession(conn, srv)
 	defer sess.Close()
 	defer conn.Close()
 
-	buffer := make([]byte, 1024)
+	// 1gb buffer
+	buffer := make([]byte, cfg.MaxCommandSize)
 
 	for {
 		n, err := conn.Read(buffer)
 		if err != nil {
 			break
+		}
+		
+		if n > cfg.MaxCommandSize {
+			conn.Write([]byte(resp.EncodeError(fmt.Sprintf("Command too large: %d > %d", n, cfg.MaxCommandSize))))
+			continue
 		}
 
 		command_data := string(buffer[:n])
@@ -117,6 +124,7 @@ func handleConnection(conn net.Conn, srv *commands.Server) {
 		cmd, err := resp.Decode(command_data)
 		if err != nil {
 			fmt.Println("Error decoding command:", err)
+			conn.Write([]byte(resp.EncodeError(fmt.Sprintf("Error decoding command: %v", err))))
 			continue
 		}
 		response := sess.Execute(cmd)

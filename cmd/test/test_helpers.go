@@ -62,9 +62,11 @@ func newTestSessionFromServer(srv *commands.Server) *commands.Session {
 
 func newTestConfig(rdbPath string) *config.Config {
 	return &config.Config{
-		AppendOnly:  true,
-		FsyncPolicy: persistence.FsyncNo,
-		RDBFile:     rdbPath,
+		AppendOnly:        true,
+		FsyncPolicy:       persistence.FsyncNo,
+		RDBFile:           rdbPath,
+		MaxCommandSize:    1024 * 1024 * 1024,
+		MaxBulkStringSize: 512 * 1024 * 1024,
 	}
 }
 

@@ -11,6 +11,17 @@ import (
 	"github.com/kevinnadar22/ledis/internal/datatypes"
 )
 
+
+const defaultMaxBulkStringSize = 512 * 1024 * 1024
+
+var maxBulkStringSize = defaultMaxBulkStringSize
+
+func SetMaxBulkStringSize(n int) {
+	if n > 0 {
+		maxBulkStringSize = n
+	}
+}
+
 func getDecoderFunc(cmd_type byte) (func(string, int) (datatypes.Value, datatypes.ByteConsumed, error), error) {
 
 	switch cmd_type {
@@ -79,6 +90,10 @@ func DecodeBulkStrings(cmd string, start_byte int) (datatypes.Value, datatypes.B
 
 	if err != nil {
 		return datatypes.Value{}, 0, err
+	}
+
+	if string_length > maxBulkStringSize {
+		return datatypes.Value{}, 0, errors.New("bulk string too large")
 	}
 
 	start := end + 2 // start from hell in $4\r\nhell\r\n
@@ -150,6 +165,9 @@ func DecodeArray(cmd string, start_byte int) (datatypes.Value, datatypes.ByteCon
 		}
 
 		value, byte_consumed, err := decoderFunc(cmd, array_offset)
+		if err != nil {
+			return datatypes.Value{}, 0, err
+		}
 
 		array_offset += int(byte_consumed)
 
@@ -253,6 +271,9 @@ func DecodeBulkStringsArrayFromReader(reader *bufio.Reader) (string, error) {
 		}
 		if bulkLen < 0 {
 			return "", errors.New("invalid bulk string length")
+		}
+		if bulkLen > maxBulkStringSize {
+			return "", errors.New("bulk string too large")
 		}
 
 		dataBuf := make([]byte, bulkLen+2)

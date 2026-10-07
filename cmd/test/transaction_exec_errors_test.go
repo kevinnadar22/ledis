@@ -44,7 +44,7 @@ func TestExecRuntimeErrorPartialSuccess(t *testing.T) {
 	got := sess.Execute(makeCommand("EXEC"))
 	want := resp.EncodeArrayOfReplies([]string{
 		"+OK\r\n",
-		"-ERR wrong datatype\r\n",
+		"-ERR value is not an integer or out of range\r\n",
 		"+OK\r\n",
 	})
 	if got != want {
