@@ -30,10 +30,16 @@ func (sess *Session) run(cmd datatypes.Command) string {
 			sess.trn.errorFlag = true
 			return resp.EncodeError("unknown command '" + cmdStr + "'")
 		}
-		if !utils.IsCommandAllowedInTransaction(cmdStr) {
+		if !utils.IsCommandAllowedInTransaction(cmdStr)  {
 			sess.trn.errorFlag = true
 			return resp.EncodeError("command not allowed in transaction")
 		}
+
+		if !utils.CheckMinArgs(cmdStr, len(cmd.Args)) {
+			sess.trn.errorFlag = true
+			return resp.EncodeError("wrong number of arguments for '" + cmdStr + "' command")
+		}
+
 		if !utils.IsTransactionCommand(cmdStr) {
 			sess.trn.multiCmds = append(sess.trn.multiCmds, cmd)
 			return resp.EncodeSimpleString("QUEUED")
