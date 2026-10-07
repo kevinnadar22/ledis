@@ -49,17 +49,19 @@ func (sess *Session) run(cmd datatypes.Command) string {
 		return resp.EncodeError("unknown command '" + cmdStr + "'")
 	}
 
-	// WATCH/UNWATCH
-	// if it is a mutating command, check any session watching this key, if yes make all the sessions dirty
+	// WATCH: mutating commands invalidate watchers of every affected key.
 	if utils.IsMutatingCommand(cmdStr) {
-		if len(cmd.Args) == 0 {
-			// if flushall, clear all the watches
-			if cmdStr == "FLUSHALL" {
-				sess.MarkAllWatchesDirty()
-			} 
+		argKeys := make([]string, 0, len(cmd.Args))
+		for _, arg := range cmd.Args {
+			argKeys = append(argKeys, arg.String())
+		}
+		keys, all := utils.WatchAffectedKeys(cmdStr, argKeys)
+		if all {
+			sess.MarkAllWatchesDirty()
 		} else {
-			K := cmd.Args[0].String()
-			sess.MarkWatchesDirty(K)
+			for _, k := range keys {
+				sess.MarkWatchesDirty(k)
+			}
 		}
 	}
 

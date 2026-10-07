@@ -108,6 +108,45 @@ func TestExecAppliesWhenWatchedKeyUnchanged(t *testing.T) {
 	}
 }
 
+func TestExecNilWhenOtherClientDelIncludesWatchedKeyAmongMany(t *testing.T) {
+	srv := newTestServer(t)
+	watcher := newTestSessionFromServer(srv)
+	other := newTestSessionFromServer(srv)
+
+	other.Execute(makeCommand("SET", "a", "1"))
+	other.Execute(makeCommand("SET", "b", "2"))
+	watcher.Execute(makeCommand("WATCH", "a"))
+	watcher.Execute(makeCommand("MULTI"))
+	watcher.Execute(makeCommand("SET", "a", "from-tx"))
+
+	other.Execute(makeCommand("DEL", "b", "a"))
+
+	got := watcher.Execute(makeCommand("EXEC"))
+	if got != resp.EncodeNil() {
+		t.Fatalf("EXEC: got %q, want %q", got, resp.EncodeNil())
+	}
+}
+
+func TestExecAppliesWhenDelDoesNotTouchWatchedKey(t *testing.T) {
+	srv := newTestServer(t)
+	watcher := newTestSessionFromServer(srv)
+	other := newTestSessionFromServer(srv)
+
+	other.Execute(makeCommand("SET", "watched", "1"))
+	other.Execute(makeCommand("SET", "other", "2"))
+	watcher.Execute(makeCommand("WATCH", "watched"))
+	watcher.Execute(makeCommand("MULTI"))
+	watcher.Execute(makeCommand("SET", "watched", "kept"))
+
+	other.Execute(makeCommand("DEL", "other"))
+
+	got := watcher.Execute(makeCommand("EXEC"))
+	want := resp.EncodeArrayOfReplies([]string{"+OK\r\n"})
+	if got != want {
+		t.Fatalf("EXEC: got %q, want %q", got, want)
+	}
+}
+
 func TestExecNilWhenOtherClientDeletesWatchedKey(t *testing.T) {
 	srv := newTestServer(t)
 	watcher := newTestSessionFromServer(srv)
