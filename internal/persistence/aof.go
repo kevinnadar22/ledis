@@ -150,7 +150,7 @@ func (a *AOF) startSyncer() {
 	go func() {
 		defer ticker.Stop()
 
-		for range ticker.C {
+		for {
 			select {
 			case <-ticker.C:
 				a.mu.Lock()
