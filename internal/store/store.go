@@ -22,10 +22,8 @@ func NewStore() *Store {
 	}
 }
 
-func (s *Store) lookup(key string) (string, bool) {
-	s.mu.Lock()
-	defer s.mu.Unlock()
-
+// lookupLocked reads key state; caller must hold s.mu.
+func (s *Store) lookupLocked(key string) (string, bool) {
 	exp, ok := s.expires[key]
 	if ok && utils.IsExpired(exp) {
 		delete(s.data, key)
@@ -37,6 +35,12 @@ func (s *Store) lookup(key string) (string, bool) {
 	return value, ok
 }
 
+func (s *Store) lookup(key string) (string, bool) {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	return s.lookupLocked(key)
+}
+
 func (s *Store) Set(key string, value string) {
 	s.mu.Lock()
 	defer s.mu.Unlock()
@@ -44,14 +48,11 @@ func (s *Store) Set(key string, value string) {
 }
 
 func (s *Store) Expire(key string, exp int64) {
-	// if key is non-existent, do not set exp
-	_, ok := s.lookup(key)
-	if !ok {
-		return
-	}
-
 	s.mu.Lock()
 	defer s.mu.Unlock()
+	if _, ok := s.lookupLocked(key); !ok {
+		return
+	}
 	s.expires[key] = utils.CalculateExpireAt(exp)
 }
 
@@ -79,14 +80,14 @@ func (s *Store) Count() int {
 }
 
 func (s *Store) INCR(key string) (int64, error) {
+	s.mu.Lock()
+	defer s.mu.Unlock()
 
-	val, ok := s.lookup(key)
+	val, ok := s.lookupLocked(key)
 	if !ok {
 		s.data[key] = "1"
 		return 1, nil
 	}
-	s.mu.Lock()
-	defer s.mu.Unlock()
 
 	int_val, err := strconv.Atoi(val)
 	if err != nil {
@@ -106,16 +107,15 @@ func (s *Store) FlushAll() {
 }
 
 func (s *Store) TTL(key string) int64 {
-	_, ok := s.lookup(key)
-	if !ok {
-		// non-existing key
+	s.mu.Lock()
+	defer s.mu.Unlock()
+
+	if _, ok := s.lookupLocked(key); !ok {
 		return -2
 	}
 
 	exp, ok := s.expires[key]
-
 	if !ok {
-		// no exp key
 		return -1
 	}
 
