@@ -3,8 +3,25 @@ package main
 import (
 	"testing"
 
+	"github.com/kevinnadar22/ledis/internal/commands"
 	"github.com/kevinnadar22/ledis/internal/resp"
+	"github.com/kevinnadar22/ledis/internal/store"
 )
+
+func TestTransactionExecWithNilAOF(t *testing.T) {
+	db := store.NewStore()
+	srv := commands.NewServer(db, nil, newTestConfig(""), newTestRDB(), store.NewPubSub())
+	sess := newTestSessionFromServer(srv)
+
+	sess.Execute(makeCommand("MULTI"))
+	sess.Execute(makeCommand("SET", "k", "v"))
+	if got := sess.Execute(makeCommand("EXEC")); got != resp.EncodeArrayOfReplies([]string{"+OK\r\n"}) {
+		t.Fatalf("EXEC: got %q", got)
+	}
+	if got := sess.Execute(makeCommand("GET", "k")); got != "$1\r\nv\r\n" {
+		t.Fatalf("GET k: got %q", got)
+	}
+}
 
 func TestTransactionMultiExec(t *testing.T) {
 	srv := newTestServer(t)

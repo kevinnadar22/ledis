@@ -26,7 +26,8 @@ type AOF struct {
 	replaying   bool
 	fsyncPolicy FsyncPolicy
 	done        chan struct{}
-	suppress    bool
+	// suppress skips Append while EXEC batches one write; assumes one worker (internal/commands/worker.go).
+	suppress bool
 }
 
 func NewAOF(path string, policy FsyncPolicy) (*AOF, error) {
