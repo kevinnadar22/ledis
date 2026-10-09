@@ -6,6 +6,29 @@ import (
 	"github.com/kevinnadar22/ledis/internal/resp"
 )
 
+// MULTI → SET a → queue-time error → EXECABORT; key a must not exist.
+func TestExecAbortSetA(t *testing.T) {
+	srv := newTestServer(t)
+	sess := newTestSessionFromServer(srv)
+
+	sess.Execute(makeCommand("MULTI"))
+	if got := sess.Execute(makeCommand("SET", "a", "1")); got != "+QUEUED\r\n" {
+		t.Fatalf("SET a: got %q, want +QUEUED\\r\\n", got)
+	}
+	if got := sess.Execute(makeCommand("NOTACOMMAND")); got != "-ERR unknown command 'NOTACOMMAND'\r\n" {
+		t.Fatalf("queue-time error: got %q", got)
+	}
+
+	got := sess.Execute(makeCommand("EXEC"))
+	want := "-EXECABORT Transaction discarded because of previous errors\r\n"
+	if got != want {
+		t.Fatalf("EXEC: got %q, want %q", got, want)
+	}
+	if got := sess.Execute(makeCommand("GET", "a")); got != "$-1\r\n" {
+		t.Fatalf("GET a: got %q — SET a must not have run", got)
+	}
+}
+
 // Queue-time error: bad command while in MULTI → EXECABORT and no queued command runs.
 func TestExecAbortQueueTimeErrorNothingApplied(t *testing.T) {
 	srv := newTestServer(t)

@@ -111,6 +111,12 @@ Integration-style command tests live under `cmd/test`:
 go test ./cmd/test/...
 ```
 
+Transaction concurrency (race detector):
+
+```bash
+go test -race ./cmd/test/... -run TestMultiExecRace
+```
+
 Run all packages:
 
 ```bash

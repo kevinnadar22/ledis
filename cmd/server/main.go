@@ -1,7 +1,9 @@
 package main
 
 import (
+	"bufio"
 	"fmt"
+	"io"
 	"log"
 	"net"
 
@@ -105,30 +107,28 @@ func handleConnection(conn net.Conn, srv *commands.Server, cfg *config.Config) {
 	defer sess.Close()
 	defer conn.Close()
 
-	// 1gb buffer
-	buffer := make([]byte, cfg.MaxCommandSize)
+	reader := bufio.NewReader(conn)
 
 	for {
-		n, err := conn.Read(buffer)
-		if err != nil {
+		cmdLine, err := resp.DecodeBulkStringsArrayFromReader(reader)
+		if err == io.EOF {
 			break
 		}
-		
-		if n > cfg.MaxCommandSize {
-			conn.Write([]byte(resp.EncodeError(fmt.Sprintf("Command too large: %d > %d", n, cfg.MaxCommandSize))))
+		if err != nil {
+			fmt.Println("Error reading command:", err)
+			break
+		}
+		if cfg.MaxCommandSize > 0 && len(cmdLine) > cfg.MaxCommandSize {
+			conn.Write([]byte(resp.EncodeError(fmt.Sprintf("Command too large: %d > %d", len(cmdLine), cfg.MaxCommandSize))))
 			continue
 		}
 
-		command_data := string(buffer[:n])
-		// decode
-		cmd, err := resp.Decode(command_data)
+		cmd, err := resp.Decode(cmdLine)
 		if err != nil {
 			fmt.Println("Error decoding command:", err)
 			conn.Write([]byte(resp.EncodeError(fmt.Sprintf("Error decoding command: %v", err))))
 			continue
 		}
-		response := sess.Execute(cmd)
-		// write back to client
-		conn.Write([]byte(response))
+		conn.Write([]byte(sess.Execute(cmd)))
 	}
 }
