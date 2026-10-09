@@ -7,14 +7,12 @@ import (
 )
 
 type Config struct {
-	AppendOnly  bool
-	FsyncPolicy persistence.FsyncPolicy
-	RDBFile     string
-	MaxCommandSize int
+	AppendOnly        bool
+	FsyncPolicy       persistence.FsyncPolicy
+	RDBFile           string
+	MaxCommandSize    int
 	MaxBulkStringSize int
 }
-
-
 
 func Load() (*Config, error) {
 	appendOnly := flag.Bool("appendonly", true, "enable AOF")
@@ -41,10 +39,10 @@ func Load() (*Config, error) {
 	}
 
 	return &Config{
-		AppendOnly:  *appendOnly,
-		FsyncPolicy: policy,
-		RDBFile:     *rdbFile,
-		MaxCommandSize: *maxCommandSize,
+		AppendOnly:        *appendOnly,
+		FsyncPolicy:       policy,
+		RDBFile:           *rdbFile,
+		MaxCommandSize:    *maxCommandSize,
 		MaxBulkStringSize: *maxBulkStringSize,
 	}, nil
 }

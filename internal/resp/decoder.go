@@ -11,7 +11,6 @@ import (
 	"github.com/kevinnadar22/ledis/internal/datatypes"
 )
 
-
 const defaultMaxBulkStringSize = 512 * 1024 * 1024
 
 var maxBulkStringSize = defaultMaxBulkStringSize

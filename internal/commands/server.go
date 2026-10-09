@@ -7,12 +7,12 @@ import (
 )
 
 type Server struct {
-	db        *store.Store
-	aof       *persistence.AOF
-	config    *config.Config
-	rdb       *persistence.RDB
-	pubsub    *store.PubSub
-	jobs      chan commandJob // channel to send commands to the worker
+	db          *store.Store
+	aof         *persistence.AOF
+	config      *config.Config
+	rdb         *persistence.RDB
+	pubsub      *store.PubSub
+	jobs        chan commandJob // channel to send commands to the worker
 	watchedKeys map[string]map[*Session]struct{}
 }
 
