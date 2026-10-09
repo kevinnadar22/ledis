@@ -26,6 +26,7 @@ type AOF struct {
 	replaying   bool
 	fsyncPolicy FsyncPolicy
 	done        chan struct{}
+	suppress    bool // EXEC holds mu; Append no-ops until one suppressed flush write
 }
 
 func NewAOF(path string, policy FsyncPolicy) (*AOF, error) {
@@ -48,32 +49,51 @@ func NewAOF(path string, policy FsyncPolicy) (*AOF, error) {
 	return a, nil
 }
 
+
+func (a *AOF) Lock() {
+	if a != nil {
+		a.mu.Lock()
+	}
+}
+
+func (a *AOF) Unlock() {
+	if a != nil {
+		a.mu.Unlock()
+	}
+}
+
+func (a *AOF) SetSuppress(v bool) {
+	if a != nil {
+		a.suppress = v
+	}
+}
+
+// WriteLocked appends bytes; caller must already hold Lock (e.g. EXEC suppress flush).
+func (a *AOF) WriteLocked(respCmd []byte) error {
+	return a.appendUnlocked(respCmd)
+}
+
 func (a *AOF) Append(respCmd []byte) error {
-	// if not enabled, don't append
-	if a == nil {
+	if a == nil || a.suppress {
 		return nil
 	}
+	a.mu.Lock()
+	defer a.mu.Unlock()
+	return a.appendUnlocked(respCmd)
+}
 
-	// if replaying, don't append
+func (a *AOF) appendUnlocked(respCmd []byte) error {
 	if a.replaying {
 		return nil
 	}
 
-	// lock
-	a.mu.Lock()
-	defer a.mu.Unlock()
-
-	// write to aof
 	n, err := a.file.Write(respCmd)
 	if err != nil {
 		return err
 	}
-
 	if n != len(respCmd) {
 		return io.ErrShortWrite
 	}
-
-	// sync
 
 	if a.fsyncPolicy == FsyncAlways {
 		err = a.file.Sync()

@@ -1,6 +1,8 @@
 package commands
 
 import (
+	"bytes"
+
 	"github.com/kevinnadar22/ledis/internal/datatypes"
 	"github.com/kevinnadar22/ledis/internal/resp"
 )
@@ -35,10 +37,27 @@ func (sess *Session) Exec(cmd datatypes.Command) (string, error) {
 	queued := sess.trn.multiCmds
 	sess.endTransaction()
 
-	results := []string{}
+	results := make([]string, 0, len(queued))
+	aof := sess.srv.aof
+
+	aof.Lock()
+	defer aof.Unlock()
+	
+	aof.SetSuppress(true)
+	defer aof.SetSuppress(false)
+
+	var batch bytes.Buffer
+	batch.WriteString(resp.Encode("MULTI"))
 	for _, cmd := range queued {
 		results = append(results, sess.run(cmd))
+		batch.WriteString(cmd.RawContent)
 	}
+	batch.WriteString(resp.Encode("EXEC"))
+
+	if err := aof.WriteLocked(batch.Bytes()); err != nil {
+		return resp.EncodeError(err.Error()), nil
+	}
+
 	return resp.EncodeArrayOfReplies(results), nil
 }
 
