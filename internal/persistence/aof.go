@@ -57,7 +57,12 @@ func (a *AOF) SetSuppress(v bool) {
 	}
 }
 
-func (a *AOF) WriteLocked(b []byte) error { return a.appendUnlocked(b) }
+func (a *AOF) WriteLocked(b []byte) error {
+	if a == nil {
+		return nil
+	}
+	return a.appendUnlocked(b)
+}
 
 func (a *AOF) Append(b []byte) error {
 	if a == nil || a.suppress {
