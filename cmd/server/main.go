@@ -9,7 +9,6 @@ import (
 
 	"github.com/kevinnadar22/ledis/internal/commands"
 	"github.com/kevinnadar22/ledis/internal/config"
-	"github.com/kevinnadar22/ledis/internal/datatypes"
 	"github.com/kevinnadar22/ledis/internal/persistence"
 	"github.com/kevinnadar22/ledis/internal/resp"
 	"github.com/kevinnadar22/ledis/internal/store"
@@ -75,11 +74,8 @@ func main() {
 	}
 
 	// if aof file exists, replay it
-	if cfg.AppendOnly {
-		err = aof.Replay(func(cmd datatypes.Command) error {
-			srv.Execute(cmd)
-			return nil
-		})
+	if cfg.AppendOnly && aof != nil{
+		err = aof.Replay(srv.ReplayHandler())
 		if err != nil {
 			log.Fatal("Error replaying AOF:", err)
 		}

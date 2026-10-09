@@ -2,9 +2,9 @@ package persistence
 
 import (
 	"bufio"
-	"fmt"
 	"io"
 	"os"
+	"strings"
 	"sync"
 	"time"
 
@@ -26,7 +26,7 @@ type AOF struct {
 	replaying   bool
 	fsyncPolicy FsyncPolicy
 	done        chan struct{}
-	suppress    bool // EXEC holds mu; Append no-ops until one suppressed flush write
+	suppress    bool
 }
 
 func NewAOF(path string, policy FsyncPolicy) (*AOF, error) {
@@ -34,149 +34,141 @@ func NewAOF(path string, policy FsyncPolicy) (*AOF, error) {
 	if err != nil {
 		return nil, err
 	}
-
-	a := &AOF{
-		file:        file,
-		fsyncPolicy: policy,
-		done:        make(chan struct{}),
-	}
-
-	// start background sync goroutine
+	a := &AOF{file: file, fsyncPolicy: policy, done: make(chan struct{})}
 	if a.fsyncPolicy == FsyncEverySecond {
 		a.startSyncer()
 	}
-
 	return a, nil
 }
-
 
 func (a *AOF) Lock() {
 	if a != nil {
 		a.mu.Lock()
 	}
 }
-
 func (a *AOF) Unlock() {
 	if a != nil {
 		a.mu.Unlock()
 	}
 }
-
 func (a *AOF) SetSuppress(v bool) {
 	if a != nil {
 		a.suppress = v
 	}
 }
 
-// WriteLocked appends bytes; caller must already hold Lock (e.g. EXEC suppress flush).
-func (a *AOF) WriteLocked(respCmd []byte) error {
-	return a.appendUnlocked(respCmd)
-}
+func (a *AOF) WriteLocked(b []byte) error { return a.appendUnlocked(b) }
 
-func (a *AOF) Append(respCmd []byte) error {
+func (a *AOF) Append(b []byte) error {
 	if a == nil || a.suppress {
 		return nil
 	}
 	a.mu.Lock()
 	defer a.mu.Unlock()
-	return a.appendUnlocked(respCmd)
+	return a.appendUnlocked(b)
 }
 
-func (a *AOF) appendUnlocked(respCmd []byte) error {
+func (a *AOF) appendUnlocked(b []byte) error {
 	if a.replaying {
 		return nil
 	}
-
-	n, err := a.file.Write(respCmd)
-	if err != nil {
+	n, err := a.file.Write(b)
+	if err != nil || n != len(b) {
+		if err == nil {
+			err = io.ErrShortWrite
+		}
 		return err
 	}
-	if n != len(respCmd) {
-		return io.ErrShortWrite
-	}
-
 	if a.fsyncPolicy == FsyncAlways {
-		err = a.file.Sync()
-		if err != nil {
-			return err
-		}
+		return a.file.Sync()
 	}
-
 	return nil
 }
 
 func (a *AOF) Close() error {
 	close(a.done)
-
 	a.mu.Lock()
 	defer a.mu.Unlock()
-
-	err := a.file.Sync()
-	if err != nil {
+	if err := a.file.Sync(); err != nil {
 		return err
 	}
-
-	err = a.file.Close()
-
-	if err != nil {
-		return err
-	}
-
-	return nil
+	return a.file.Close()
 }
 
-func (a *AOF) Replay(handler func(cmd datatypes.Command) error) error {
-	// we need to read the file buffer by buffer, call the decode function and update the bytes consumed, if error, skip that and continue
-	// since we are replaying, we don't need to write to AOF
+func (a *AOF) truncate(off int64) {
+	a.mu.Lock()
+	defer a.mu.Unlock()
+	_ = os.Truncate(a.file.Name(), off)
+	_, _ = a.file.Seek(off, io.SeekStart)
+}
+
+func (a *AOF) Replay(handler func(datatypes.Command) error) error {
 	a.replaying = true
-	defer func() {
-		a.replaying = false
-	}()
+	defer func() { a.replaying = false }()
+	_, err := a.file.Seek(0, io.SeekStart)
 
-	reader := bufio.NewReader(a.file)
+	if err != nil {
+		return err
+	}
 
-	// while
+	r := bufio.NewReader(a.file)
+	var ok int64
+	inMulti := false
+	var multiStart int64
+	var pending []datatypes.Command
+
 	for {
-		cmd_line, err := resp.DecodeBulkStringsArrayFromReader(reader)
-
-		if err == io.EOF {
-			break
+		line, err := resp.DecodeBulkStringsArrayFromReader(r)
+		if err != nil {
+			off := ok
+			if inMulti {
+				off = multiStart
+			}
+			a.truncate(off)
+			return nil
 		}
+		cmd, err := resp.Decode(line)
 		if err != nil {
 			return err
 		}
+		up := strings.ToUpper(cmd.Cmd.String())
+		n := int64(len(line))
 
-		cmd, err := resp.Decode(cmd_line)
-
-		fmt.Printf("Replaying: %q\n", *cmd.Cmd.Str)
-
-		for _, arg := range cmd.Args {
-			fmt.Printf("Arg: %q\n", *arg.Str)
-		}
-
-		if err != nil {
-			fmt.Println("Error decoding command:", err)
+		if inMulti {
+			if up == "EXEC" {
+				for _, c := range pending {
+					_ = handler(c)
+				}
+				inMulti = false
+				pending = nil
+			} else {
+				pending = append(pending, cmd)
+			}
+			ok += n
 			continue
 		}
-		handler(cmd)
+		if up == "MULTI" {
+			inMulti, multiStart, pending = true, ok, nil
+			ok += n
+			continue
+		}
+		if err := handler(cmd); err != nil {
+			return err
+		}
+		ok += n
 	}
-
-	return nil
 }
 
 func (a *AOF) startSyncer() {
 	ticker := time.NewTicker(time.Second)
-
 	go func() {
 		defer ticker.Stop()
-
 		for {
 			select {
 			case <-ticker.C:
 				a.mu.Lock()
 				_ = a.file.Sync()
 				a.mu.Unlock()
-
 			case <-a.done:
 				return
 			}

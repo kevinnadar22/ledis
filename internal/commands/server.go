@@ -2,9 +2,11 @@ package commands
 
 import (
 	"github.com/kevinnadar22/ledis/internal/config"
+	"github.com/kevinnadar22/ledis/internal/datatypes"
 	"github.com/kevinnadar22/ledis/internal/persistence"
 	"github.com/kevinnadar22/ledis/internal/store"
 )
+
 
 type Server struct {
 	db          *store.Store
@@ -40,4 +42,13 @@ func (s *Server) AOF() *persistence.AOF {
 
 func (s *Server) RDB() *persistence.RDB {
 	return s.rdb
+}
+
+// ReplayHandler returns a callback that replays on one session (MULTI/EXEC blocks).
+func (s *Server) ReplayHandler() func(datatypes.Command) error {
+	sess := NewSession(nil, s)
+	return func(cmd datatypes.Command) error {
+		sess.run(cmd)
+		return nil
+	}
 }

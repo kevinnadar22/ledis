@@ -1,0 +1,31 @@
+---
+description: Where and how to add tests in Ledis (cmd/test only)
+globs: cmd/test/**/*.go,**/*_test.go
+alwaysApply: false
+---
+
+# Testing
+
+## Location
+
+- Put **integration and command tests** in `cmd/test/` only (`*_test.go`, `package main`).
+- Do **not** add new test files under `internal/` or other packages unless the user explicitly asks for package-level unit tests.
+
+## Conventions
+
+- Reuse helpers in `cmd/test/test_helpers.go` (`newTestServer`, `makeCommand`, `newTestSessionFromServer`, etc.).
+- For AOF replay, wire through `persistence.AOF.Replay` and `commands.Server.ReplayHandler()` like `cmd/test/aof_replay_test.go`.
+- Prefer temp dirs (`t.TempDir()`) and `persistence.FsyncNo` for AOF tests.
+
+## Commands
+
+```bash
+go test ./cmd/test/...
+go test ./...
+```
+
+Race / transaction stress (when relevant):
+
+```bash
+go test -race ./cmd/test/... -run TestMultiExecRace
+```
