@@ -123,6 +123,25 @@ Run all packages:
 go test ./...
 ```
 
+## Benchmarking vs Redis
+
+> **Not a production benchmark.** One localhost run (`-n 1000000 -c 50`, `ping_mbulk,set,get,incr`). Ledis had **`-appendonly=false`**; Redis used default **6379**. Results vary by machine and load—see **[docs/benchmarking.md](docs/benchmarking.md)** for commands, caveats, and interview notes.
+
+| Test (`redis-benchmark`) | Redis `:6379` (req/s) | Ledis `:7379` (req/s) |
+|--------------------------|----------------------:|----------------------:|
+| `ping_mbulk` (RESP PING) | ~59,700 | ~77,400 |
+| `set` | ~61,500 | ~56,300 |
+| `get` | ~63,700 | ~77,200 |
+| `incr` | ~63,300 | ~79,200 |
+
+Ledis uses a **single command worker** (global serialization); Redis is a full production server—treat this as a smoke test, not a winner/loser scoreboard.
+
+```bash
+go run ./cmd/server -appendonly=false
+redis-benchmark -h 127.0.0.1 -p 6379 -t ping_mbulk,set,get,incr -n 1000000 -c 50
+redis-benchmark -h 127.0.0.1 -p 7379 -t ping_mbulk,set,get,incr -n 1000000 -c 50
+```
+
 ## Layout
 
 ```

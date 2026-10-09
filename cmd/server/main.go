@@ -111,7 +111,7 @@ func handleConnection(conn net.Conn, srv *commands.Server, cfg *config.Config) {
 			break
 		}
 		if err != nil {
-			fmt.Println("Error reading command:", err)
+			fmt.Println("Error reading command:", err, string(cmdLine))
 			break
 		}
 		if cfg.MaxCommandSize > 0 && len(cmdLine) > cfg.MaxCommandSize {
