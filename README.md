@@ -125,21 +125,22 @@ go test ./...
 
 ## Benchmarking vs Redis
 
-> **Not a production benchmark.** One localhost run (`-n 1000000 -c 50`, `ping_mbulk,set,get,incr`). Ledis had **`-appendonly=false`**; Redis used default **6379**. Results vary by machine and load—see **[docs/benchmarking.md](docs/benchmarking.md)** for commands, caveats, and interview notes.
+> **Not a production benchmark.** Median **req/s of 3 runs** each (`-n 1000000 -c 50`, `ping_mbulk,set,get,incr`). **Redis:** `redis-server --save "" --appendonly no`. **Ledis (in-memory):** `-appendonly=false`. **Ledis (AOF):** default with `appendfsync everysec`. See **[docs/benchmarking.md](docs/benchmarking.md)** for methodology and caveats.
 
-| Test (`redis-benchmark`) | Redis `:6379` (req/s) | Ledis `:7379` (req/s) |
-|--------------------------|----------------------:|----------------------:|
-| `ping_mbulk` (RESP PING) | ~59,700 | ~77,400 |
-| `set` | ~61,500 | ~56,300 |
-| `get` | ~63,700 | ~77,200 |
-| `incr` | ~63,300 | ~79,200 |
+| Test | Redis (no persistence) | Ledis (no AOF) | Ledis (AOF everysec) |
+|------|----------------------:|---------------:|---------------------:|
+| `ping_mbulk` | ~55,600 | ~46,700 | ~47,100 |
+| `set` | ~48,300 | ~40,900 | ~40,700 |
+| `get` | ~56,000 | ~40,800 | ~41,700 |
+| `incr` | ~61,400 | ~41,200 | ~41,300 |
 
 Ledis uses a **single command worker** (global serialization); Redis is a full production server—treat this as a smoke test, not a winner/loser scoreboard.
 
 ```bash
-go run ./cmd/server -appendonly=false
-redis-benchmark -h 127.0.0.1 -p 6379 -t ping_mbulk,set,get,incr -n 1000000 -c 50
-redis-benchmark -h 127.0.0.1 -p 7379 -t ping_mbulk,set,get,incr -n 1000000 -c 50
+redis-server --save "" --appendonly no --port 6379
+go run ./cmd/server -appendonly=false   # or omit flag for AOF column
+redis-benchmark -h 127.0.0.1 -p 6379 -t ping_mbulk,set,get,incr -n 1000000 -c 50 -q   # ×3, take median
+redis-benchmark -h 127.0.0.1 -p 7379 -t ping_mbulk,set,get,incr -n 1000000 -c 50 -q   # ×3, take median
 ```
 
 ## Layout
