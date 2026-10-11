@@ -35,3 +35,4 @@ tmp/build-errors.log
 .vscode/launch.json
 
 dump.rdb
+test.md

@@ -2,6 +2,7 @@ package persistence
 
 import (
 	"bufio"
+	"errors"
 	"io"
 	"os"
 	"strings"
@@ -126,6 +127,9 @@ func (a *AOF) Replay(handler func(datatypes.Command) error) error {
 	for {
 		line, err := resp.DecodeBulkStringsArrayFromReader(r)
 		if err != nil {
+			if errors.Is(err, io.EOF) && ok == 0 {
+				return nil
+			}
 			off := ok
 			if inMulti {
 				off = multiStart
@@ -150,18 +154,20 @@ func (a *AOF) Replay(handler func(datatypes.Command) error) error {
 			} else {
 				pending = append(pending, cmd)
 			}
-			ok += n
-			continue
-		}
-		if up == "MULTI" {
+		} else if up == "MULTI" {
 			inMulti, multiStart, pending = true, ok, nil
-			ok += n
-			continue
-		}
-		if err := handler(cmd); err != nil {
-			return err
+		} else {
+			if err := handler(cmd); err != nil {
+				return err
+			}
 		}
 		ok += n
+		if _, err := r.Peek(1); errors.Is(err, io.EOF) {
+			if inMulti {
+				a.truncate(multiStart)
+			}
+			return nil
+		}
 	}
 }
 
