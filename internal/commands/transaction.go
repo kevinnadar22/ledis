@@ -42,7 +42,7 @@ func (sess *Session) Exec(cmd datatypes.Command) (string, error) {
 
 	aof.Lock()
 	defer aof.Unlock()
-	
+
 	aof.SetSuppress(true)
 	defer aof.SetSuppress(false)
 

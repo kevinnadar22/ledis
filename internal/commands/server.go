@@ -7,7 +7,6 @@ import (
 	"github.com/kevinnadar22/ledis/internal/store"
 )
 
-
 type Server struct {
 	db          *store.Store
 	aof         *persistence.AOF

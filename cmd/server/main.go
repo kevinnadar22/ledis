@@ -74,7 +74,7 @@ func main() {
 	}
 
 	// if aof file exists, replay it
-	if cfg.AppendOnly && aof != nil{
+	if cfg.AppendOnly && aof != nil {
 		err = aof.Replay(srv.ReplayHandler())
 		if err != nil {
 			log.Fatal("Error replaying AOF:", err)
