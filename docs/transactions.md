@@ -13,3 +13,73 @@ In Redis, if a command is invalid or the wrong number of arguments is given whil
 
 WATCH/UNWATCH Command - Optmistic Locking means that the client will try to execute the transaction and if the data has changed, the transaction will be aborted. Watch command will watch the key and if the key is modified, the transaction will be aborted. Unwatch command will unwatch the key and the transaction will be executed.
 SO if a multi returned null, the transaction will be aborted. The client will need to retry the transaction till it succeeds.
+
+## redis-cli session
+
+Real output from stock `redis-cli` against Ledis on port 7379.
+
+### Basic MULTI/EXEC
+
+```
+127.0.0.1:7379> flushall
+OK
+127.0.0.1:7379> set counter 10
+OK
+127.0.0.1:7379> multi
+OK
+127.0.0.1:7379(TX)> set name kevin
+QUEUED
+127.0.0.1:7379(TX)> incr counter
+QUEUED
+127.0.0.1:7379(TX)> get name
+QUEUED
+127.0.0.1:7379(TX)> exec
+1) OK
+2) (integer) 11
+3) "kevin"
+```
+
+### DISCARD and EXECABORT
+
+```
+127.0.0.1:7379> multi
+OK
+127.0.0.1:7379(TX)> set temp 1
+QUEUED
+127.0.0.1:7379(TX)> discard
+OK
+127.0.0.1:7379> get temp
+(nil)
+127.0.0.1:7379> multi
+OK
+127.0.0.1:7379(TX)> set a
+(error) ERR wrong number of arguments for 'SET' command
+127.0.0.1:7379(TX)> exec
+(error) EXECABORT Transaction discarded because of previous errors
+127.0.0.1:7379> get a
+(nil)
+```
+
+### WATCH abort
+
+Another client changes the watched key before EXEC, so the transaction is aborted.
+
+```
+# terminal 1
+127.0.0.1:7379> watch counter
+OK
+127.0.0.1:7379> multi
+OK
+127.0.0.1:7379(TX)> incr counter
+QUEUED
+
+# terminal 2
+127.0.0.1:7379> set counter 100
+OK
+
+# terminal 1
+127.0.0.1:7379(TX)> exec
+(nil)
+127.0.0.1:7379> get counter
+"100"
+```
