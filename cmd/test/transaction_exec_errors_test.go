@@ -6,6 +6,26 @@ import (
 	"github.com/kevinnadar22/ledis/internal/resp"
 )
 
+// MULTI → SET a (arity error) → EXECABORT; key a must not exist.
+func TestExecAbortSetAWrongArity(t *testing.T) {
+	srv := newTestServer(t)
+	sess := newTestSessionFromServer(srv)
+
+	sess.Execute(makeCommand("MULTI"))
+	if got := sess.Execute(makeCommand("SET", "a")); got != "-ERR wrong number of arguments for 'SET' command\r\n" {
+		t.Fatalf("SET a (no value): got %q", got)
+	}
+
+	got := sess.Execute(makeCommand("EXEC"))
+	want := "-EXECABORT Transaction discarded because of previous errors\r\n"
+	if got != want {
+		t.Fatalf("EXEC: got %q, want %q", got, want)
+	}
+	if got := sess.Execute(makeCommand("GET", "a")); got != "$-1\r\n" {
+		t.Fatalf("GET a: got %q — SET must not have run", got)
+	}
+}
+
 // MULTI → SET a → queue-time error → EXECABORT; key a must not exist.
 func TestExecAbortSetA(t *testing.T) {
 	srv := newTestServer(t)
