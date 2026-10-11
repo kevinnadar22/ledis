@@ -125,7 +125,7 @@ go test ./...
 
 ## Benchmarking vs Redis
 
-> **Not a production benchmark.** Median **req/s of 3 runs** each (`-n 1000000 -c 50`, `ping_mbulk,set,get,incr`). **Redis:** `redis-server --save "" --appendonly no`. **Ledis (in-memory):** `-appendonly=false`. **Ledis (AOF):** default with `appendfsync everysec`. See **[docs/benchmarking.md](docs/benchmarking.md)** for methodology and caveats.
+> **Not a production benchmark.** Median **req/s of 3 runs** each (`-n 1000000 -c 50`, `ping_mbulk,set,get,incr`) on **Windows 11 / i5-12450H / 16 GB RAM** (HP Victus laptop). **Redis:** `redis-server --save "" --appendonly no`. **Ledis (in-memory):** `-appendonly=false`. **Ledis (AOF):** default with `appendfsync everysec`. See **[docs/benchmarking.md](docs/benchmarking.md)** for full host specs, methodology, and caveats.
 
 | Test | Redis (no persistence) | Ledis (no AOF) | Ledis (AOF everysec) |
 |------|----------------------:|---------------:|---------------------:|

@@ -24,6 +24,20 @@ This document uses **persistence off on both** for the main comparison, then a *
 
 > **Ledis default is `-appendonly=true`.** The in-memory column deliberately turns AOF off so Redis and Ledis both avoid append/fsync during that comparison.
 
+## Host machine (numbers below were captured here)
+
+| | |
+|--|--|
+| **OS** | Windows 11 Home (build 26200), x64 |
+| **Hardware** | HP Victus by HP Gaming Laptop 15-fa1xxx |
+| **CPU** | 12th Gen Intel Core i5-12450H |
+| **RAM** | 16 GB |
+| **Redis** | 8.8.0 (`redis-server` / `redis-benchmark` via Scoop) |
+| **Ledis** | `go run ./cmd/server` from this repo (Go toolchain on the same host) |
+| **Network** | Loopback only (`127.0.0.1`) |
+
+Laptop thermals, background apps, and power mode were not controlled; treat absolute req/s as **this box only**.
+
 ## Results (median of 3 runs, this machine)
 
 Throughput only (`redis-benchmark -q`, middle value of three runs). Re-run the commands below on your hardware; absolute req/s will differ.
