@@ -6,8 +6,10 @@ import (
 	"path/filepath"
 	"testing"
 
+	"github.com/kevinnadar22/ledis/internal/commands"
 	"github.com/kevinnadar22/ledis/internal/persistence"
 	"github.com/kevinnadar22/ledis/internal/resp"
+	"github.com/kevinnadar22/ledis/internal/store"
 )
 
 func TestAOFWriteAndReplay(t *testing.T) {
@@ -88,5 +90,50 @@ func TestAOFWriteAndReplay(t *testing.T) {
 	}
 	if len(cmdParsed1.Args) != 2 || *cmdParsed1.Args[0].Str != "a" || *cmdParsed1.Args[1].Str != "42" {
 		t.Errorf("unexpected arguments for command 1: %v", cmdParsed1.Args)
+	}
+}
+
+func TestAOFMultiSetExecEndToEnd(t *testing.T) {
+	dir := t.TempDir()
+	path := filepath.Join(dir, "appendonly.aof")
+
+	aof, err := persistence.NewAOF(path, persistence.FsyncNo)
+	if err != nil {
+		t.Fatalf("NewAOF: %v", err)
+	}
+	t.Cleanup(func() { _ = aof.Close() })
+
+	db := store.NewStore()
+	srv := commands.NewServer(db, aof, newTestConfig(""), newTestRDB(), store.NewPubSub())
+	sess := newTestSessionFromServer(srv)
+
+	setWire := "*3\r\n$3\r\nSET\r\n$1\r\nk\r\n$1\r\nv\r\n"
+	setCmd, err := resp.Decode(setWire)
+	if err != nil {
+		t.Fatalf("Decode SET wire: %v", err)
+	}
+
+	if got := sess.Execute(makeCommand("MULTI")); got != "+OK\r\n" {
+		t.Fatalf("MULTI: got %q", got)
+	}
+	if got := sess.Execute(setCmd); got != "+QUEUED\r\n" {
+		t.Fatalf("SET: got %q", got)
+	}
+	if got := sess.Execute(makeCommand("EXEC")); got != resp.EncodeArrayOfReplies([]string{"+OK\r\n"}) {
+		t.Fatalf("EXEC: got %q", got)
+	}
+
+	want := resp.Encode("MULTI") + setWire + resp.Encode("EXEC")
+	data, err := os.ReadFile(path)
+	if err != nil {
+		t.Fatalf("ReadFile: %v", err)
+	}
+	if string(data) != want {
+		t.Fatalf("AOF on disk:\ngot  %q\nwant %q", string(data), want)
+	}
+
+	val, ok := srv.DB().Get("k")
+	if !ok || val != "v" {
+		t.Fatalf("GET k = %q, ok=%v", val, ok)
 	}
 }
