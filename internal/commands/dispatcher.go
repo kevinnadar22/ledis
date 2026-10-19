@@ -115,6 +115,8 @@ func getHandler(sess *Session, cmdStr string) func(datatypes.Command) (string, e
 		handler = sess.Unwatch
 	case "REPLICAOF":
 		handler = sess.ReplicaOf
+	case "REPLCONF":
+		handler = sess.ReplConf
 	default:
 		return nil
 	}

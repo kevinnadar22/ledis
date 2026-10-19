@@ -1,10 +1,8 @@
 package commands
 
 import (
-	"context"
 	"errors"
 	"net"
-	"sync"
 
 	"github.com/kevinnadar22/ledis/internal/datatypes"
 	"github.com/kevinnadar22/ledis/internal/store"
@@ -21,17 +19,13 @@ type Session struct {
 	conn         net.Conn
 	srv          *Server
 	pubsubClient *store.Client
-	mu           sync.Mutex
 
 	// transaction mode
 	trn *Transaction
-
-	// replication client
-	masterCancel context.CancelFunc
 }
 
 func NewSession(conn net.Conn, srv *Server) *Session {
-	return &Session{conn: conn, srv: srv, trn: &Transaction{}, masterCancel: nil}
+	return &Session{conn: conn, srv: srv, trn: &Transaction{}}
 }
 
 func (sess *Session) Close() {

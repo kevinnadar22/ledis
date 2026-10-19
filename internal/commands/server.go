@@ -1,6 +1,10 @@
 package commands
 
 import (
+	"context"
+	"net"
+	"sync"
+
 	"github.com/kevinnadar22/ledis/internal/config"
 	"github.com/kevinnadar22/ledis/internal/datatypes"
 	"github.com/kevinnadar22/ledis/internal/persistence"
@@ -8,24 +12,30 @@ import (
 )
 
 type Server struct {
-	db          *store.Store
-	aof         *persistence.AOF
-	config      *config.Config
-	rdb         *persistence.RDB
-	pubsub      *store.PubSub
-	jobs        chan commandJob // channel to send commands to the worker
-	watchedKeys map[string]map[*Session]struct{}
+	db              *store.Store
+	aof             *persistence.AOF
+	config          *config.Config
+	rdb             *persistence.RDB
+	pubsub          *store.PubSub
+	jobs            chan commandJob // channel to send commands to the worker
+	watchedKeys     map[string]map[*Session]struct{}
+	replicas        map[net.Conn]*ReplicationClient // maintained by master
+	pendingReplicas map[net.Conn]*ReplicationClient // replicas in handshaking process
+	mu              sync.Mutex
+	masterCancel    context.CancelFunc // maintained by replicas to stop the replication
 }
 
 func NewServer(db *store.Store, aof *persistence.AOF, config *config.Config, rdb *persistence.RDB, pubsub *store.PubSub) *Server {
 	s := &Server{
-		db:          db,
-		aof:         aof,
-		config:      config,
-		rdb:         rdb,
-		pubsub:      pubsub,
-		jobs:        make(chan commandJob),
-		watchedKeys: make(map[string]map[*Session]struct{}),
+		db:              db,
+		aof:             aof,
+		config:          config,
+		rdb:             rdb,
+		pubsub:          pubsub,
+		jobs:            make(chan commandJob),
+		watchedKeys:     make(map[string]map[*Session]struct{}),
+		replicas:        make(map[net.Conn]*ReplicationClient),
+		pendingReplicas: make(map[net.Conn]*ReplicationClient),
 	}
 	s.startWorker()
 	return s
