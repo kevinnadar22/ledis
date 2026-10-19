@@ -12,6 +12,7 @@ type Config struct {
 	RDBFile           string
 	MaxCommandSize    int
 	MaxBulkStringSize int
+	Port              int
 }
 
 func Load() (*Config, error) {
@@ -22,6 +23,8 @@ func Load() (*Config, error) {
 
 	// 512mb bulk string size
 	maxBulkStringSize := flag.Int("max-bulk-string-size", 512*1024*1024, "max bulk string size in bytes")
+
+	port := flag.Int("port", 6379, "port to listen on")
 
 	flag.Parse()
 
@@ -44,5 +47,6 @@ func Load() (*Config, error) {
 		RDBFile:           *rdbFile,
 		MaxCommandSize:    *maxCommandSize,
 		MaxBulkStringSize: *maxBulkStringSize,
+		Port:              *port,
 	}, nil
 }

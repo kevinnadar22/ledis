@@ -15,15 +15,6 @@ import (
 )
 
 func main() {
-	listener, err := net.Listen("tcp", ":7379")
-
-	if err != nil {
-		log.Fatal(err)
-		return
-	}
-
-	defer listener.Close()
-
 	// create in memory database
 	db := store.NewStore()
 
@@ -81,8 +72,17 @@ func main() {
 		}
 	}
 
+	listener, err := net.Listen("tcp", fmt.Sprintf(":%d", cfg.Port))
+
+	if err != nil {
+		log.Fatal(err)
+		return
+	}
+
+	defer listener.Close()
+
 	// start accepting connections
-	fmt.Println("Listening on port 7379")
+	fmt.Println("Listening on port", cfg.Port)
 
 	for {
 		conn, err := listener.Accept()
