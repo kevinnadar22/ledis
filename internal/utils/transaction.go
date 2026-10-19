@@ -11,6 +11,8 @@ var notAllowedCommandsInTransaction = map[string]bool{
 	"UNSUBSCRIBE": true,
 	"WATCH":       true,
 	"UNWATCH":     true,
+	"REPLCONF":    true,
+	"REPLICAOF":   true,
 }
 
 type watchKeyPolicy int
