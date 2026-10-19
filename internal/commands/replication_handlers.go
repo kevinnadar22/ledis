@@ -13,3 +13,7 @@ func (sess *Session) ReplConf(cmd datatypes.Command) (string, error) {
 func (sess *Session) ReplicaOfNoOne(cmd datatypes.Command) (string, error) {
 	return sess.srv.repl.ReplicaOfNoOne(cmd)
 }
+
+func (sess *Session) Psync(cmd datatypes.Command) (string, error) {
+	return sess.srv.repl.Psync(sess.conn)
+}

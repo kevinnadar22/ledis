@@ -66,6 +66,32 @@ func (c *Coordinator) run(ctx context.Context, host, port string) {
 		}
 	}
 
+	conn.Write([]byte(resp.EncodeSimpleString("PSYNC ? -1")))
+
+	fullSyncResponse, err := resp.DecodeSimpleStringFromReader(reader)
+	if err != nil {
+		log.Printf("replication handshake: %v", err)
+		return
+	}
+
+	parts := strings.Fields(fullSyncResponse)
+	if len(parts) != 3 || parts[0] != "FULLRESYNC" {
+		fmt.Errorf("invalid FULLRESYNC response")
+		return
+	}
+	
+	replID := parts[1]
+	
+	replOffset, err := strconv.ParseInt(parts[2], 10, 64)
+	if err != nil {
+		fmt.Errorf("invalid FULLRESYNC response")
+		return 
+	}
+
+	fmt.Printf("Full sync completed: ReplID: %s, ReplOffset: %d\n", replID, replOffset)
+
+
+
 	for {
 		select {
 		case <-ctx.Done():
