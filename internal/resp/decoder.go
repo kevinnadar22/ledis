@@ -289,3 +289,36 @@ func DecodeBulkStringsArrayFromReader(reader *bufio.Reader) (string, error) {
 
 	return builder.String(), nil
 }
+
+func DecodeSimpleStringFromReader(reader *bufio.Reader) (string, error) {
+	// RESP simple string: +<payload>\r\n (no length line; unlike bulk strings)
+	first_byte, err := reader.ReadByte()
+	if err != nil {
+		return "", err
+	}
+
+	var errorFlag bool
+
+	if first_byte != '+' {
+		errorFlag = true
+	}
+
+	line, err := reader.ReadString('\n')
+	if err != nil {
+		return "", err
+	}
+	if !strings.HasSuffix(line, "\r\n") {
+		return "", errors.New("invalid simple string line terminator")
+	}
+
+	payload := line[:len(line)-2]
+	if len(payload) > maxBulkStringSize {
+		return "", errors.New("simple string too large")
+	}
+
+	if errorFlag {
+		return "", errors.New(payload)
+	}
+
+	return payload, nil
+}
