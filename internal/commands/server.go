@@ -1,13 +1,12 @@
 package commands
 
 import (
-	"context"
-	"net"
 	"sync"
 
 	"github.com/kevinnadar22/ledis/internal/config"
 	"github.com/kevinnadar22/ledis/internal/datatypes"
 	"github.com/kevinnadar22/ledis/internal/persistence"
+	"github.com/kevinnadar22/ledis/internal/replication"
 	"github.com/kevinnadar22/ledis/internal/store"
 )
 
@@ -18,11 +17,9 @@ type Server struct {
 	rdb             *persistence.RDB
 	pubsub          *store.PubSub
 	jobs            chan commandJob // channel to send commands to the worker
-	watchedKeys     map[string]map[*Session]struct{}
-	replicas        map[net.Conn]*ReplicationClient // maintained by master
-	pendingReplicas map[net.Conn]*ReplicationClient // replicas in handshaking process
-	mu              sync.Mutex
-	masterCancel    context.CancelFunc // maintained by replicas to stop the replication
+	watchedKeys map[string]map[*Session]struct{}
+	repl        *replication.Coordinator
+	mu          sync.Mutex
 }
 
 func NewServer(db *store.Store, aof *persistence.AOF, config *config.Config, rdb *persistence.RDB, pubsub *store.PubSub) *Server {
@@ -33,9 +30,8 @@ func NewServer(db *store.Store, aof *persistence.AOF, config *config.Config, rdb
 		rdb:             rdb,
 		pubsub:          pubsub,
 		jobs:            make(chan commandJob),
-		watchedKeys:     make(map[string]map[*Session]struct{}),
-		replicas:        make(map[net.Conn]*ReplicationClient),
-		pendingReplicas: make(map[net.Conn]*ReplicationClient),
+		watchedKeys: make(map[string]map[*Session]struct{}),
+		repl:        replication.New(config.Port),
 	}
 	s.startWorker()
 	return s
