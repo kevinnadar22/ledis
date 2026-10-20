@@ -54,7 +54,10 @@ func (c *Coordinator) run(ctx context.Context, host, port string) {
 	fmt.Println("connected to master")
 	defer conn.Close()
 
+	// lock the master connection
+	c.mu.Lock()
 	c.master.Conn = conn
+	c.mu.Unlock()
 
 	reader := bufio.NewReader(conn)
 	for _, msg := range [][]string{
@@ -83,7 +86,7 @@ func (c *Coordinator) run(ctx context.Context, host, port string) {
 
 	parts := strings.Fields(fullSyncResponse)
 	if len(parts) != 3 || parts[0] != "FULLRESYNC" {
-		log.Fatalf("replication handshake error on invalid FULLRESYNC response: %s", fullSyncResponse)
+		fmt.Printf("replication handshake error on invalid FULLRESYNC response: %s", fullSyncResponse)
 		return
 	}
 
@@ -91,7 +94,7 @@ func (c *Coordinator) run(ctx context.Context, host, port string) {
 
 	replStartOffset, err := strconv.ParseInt(parts[2], 10, 64)
 	if err != nil {
-		log.Fatalf("replication handshake error on invalid FULLRESYNC response: %s", fullSyncResponse)
+		fmt.Printf("replication handshake error on invalid FULLRESYNC response: %s", fullSyncResponse)
 		return
 	}
 
@@ -102,7 +105,7 @@ func (c *Coordinator) run(ctx context.Context, host, port string) {
 	c.mu.Unlock()
 
 	// row read the full sync response and write to the replica
-	err = c.ReadFullSyncResponse(conn, c.db)
+	err = c.ReadFullSyncResponse(reader, c.db)
 	if err != nil {
 		log.Printf("replication handshake error on reading full sync response from master: %v", err)
 		return

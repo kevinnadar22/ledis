@@ -25,7 +25,7 @@ type Master struct {
 }
 
 type Coordinator struct {
-	mu sync.Mutex
+	mu sync.RWMutex
 
 	// This server's own replication identity and history.
 	replID          string

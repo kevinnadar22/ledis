@@ -30,9 +30,8 @@ func (c *Coordinator) SendFullSyncResponse(conn net.Conn, entries []datatypes.RD
 	return nil
 }
 
-func (c *Coordinator) ReadFullSyncResponse(conn net.Conn, db *store.Store) error {
+func (c *Coordinator) ReadFullSyncResponse(reader *bufio.Reader, db *store.Store) error {
 	// read the header
-	reader := bufio.NewReader(conn)
 	header, err := reader.ReadString('\n')
 
 	if err != nil {
