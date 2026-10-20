@@ -28,23 +28,13 @@ func (c *Coordinator) Psync(conn net.Conn, cmd datatypes.Command, entries []data
 	c.mu.RUnlock()
 
 	// if repldId is ? then we need to send the full sync
-	if replID == "?" {
+	if replID == "?" || replOffset < masterReplOffset || replID != masterReplID {
 		c.writeFullSyncResponse(conn)
 		return "", c.SendFullSyncResponse(conn, entries)
 	}
-
-	// check if the replID is the same as the master's replID
-	if replID != masterReplID {
-		return "", fmt.Errorf("invalid replID")
-	}
-
-	// if offset is lesser than the master's offset then we need to send the full sync
-	if replOffset < masterReplOffset {
-		c.writeFullSyncResponse(conn)
-		return "", c.SendFullSyncResponse(conn, entries)
-	}
-
-	return resp.EncodeSimpleString("CONTINUE"), nil
+	
+	c.writeFullSyncResponse(conn)
+	return "", c.SendFullSyncResponse(conn, entries)
 }
 
 func (c *Coordinator) writeFullSyncResponse(conn net.Conn) error {
