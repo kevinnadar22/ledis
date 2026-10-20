@@ -15,5 +15,9 @@ func (sess *Session) ReplicaOfNoOne(cmd datatypes.Command) (string, error) {
 }
 
 func (sess *Session) Psync(cmd datatypes.Command) (string, error) {
-	return sess.srv.repl.Psync(sess.conn)
+	entries, err := sess.srv.DB().SaveSnapshot()
+	if err != nil {
+		return "", err
+	}
+	return sess.srv.repl.Psync(sess.conn, cmd, entries)
 }

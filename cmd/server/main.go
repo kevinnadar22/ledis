@@ -72,6 +72,9 @@ func main() {
 		}
 	}
 
+	// make this server itself a master
+	srv.MakeMaster()
+
 	listener, err := net.Listen("tcp", fmt.Sprintf(":%d", cfg.Port))
 
 	if err != nil {

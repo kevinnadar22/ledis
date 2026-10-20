@@ -40,6 +40,39 @@ func (r *RDB) BGSave(path string, entries []datatypes.RDBEntry) error {
 	return nil
 }
 
+// EncodeSnapshot writes RDB bytes into buf (or a new buffer when buf is nil).
+func EncodeSnapshot(entries []datatypes.RDBEntry, buf *bytes.Buffer) (*bytes.Buffer, error) {
+	if buf == nil {
+		buf = bytes.NewBuffer(nil)
+	}
+
+	buf.Write(Magic)
+	buf.WriteByte(Version)
+
+	for _, entry := range entries {
+		if err := binary.Write(buf, binary.BigEndian, uint32(len(entry.Key))); err != nil {
+			return nil, err
+		}
+		buf.WriteString(entry.Key)
+
+		if err := binary.Write(buf, binary.BigEndian, uint32(len(entry.Value))); err != nil {
+			return nil, err
+		}
+		buf.WriteString(entry.Value)
+
+		if entry.Expiration != nil {
+			buf.WriteByte(1)
+			if err := binary.Write(buf, binary.BigEndian, *entry.Expiration); err != nil {
+				return nil, err
+			}
+		} else {
+			buf.WriteByte(0)
+		}
+	}
+
+	return buf, nil
+}
+
 func (r *RDB) Save(path string, entries []datatypes.RDBEntry) error {
 	r.mu.Lock()
 	defer r.mu.Unlock()
@@ -49,51 +82,23 @@ func (r *RDB) Save(path string, entries []datatypes.RDBEntry) error {
 	r.saving = true
 	defer func() { r.saving = false }()
 
+	buf, err := EncodeSnapshot(entries, nil)
+	if err != nil {
+		return err
+	}
+
 	file, err := os.Create(path)
 	if err != nil {
 		return err
 	}
 	defer file.Close()
 
-	buf := bytes.NewBuffer(nil)
-	buf.Write(Magic)
-	buf.WriteByte(Version)
-
-	for _, entry := range entries {
-		err := binary.Write(buf, binary.BigEndian, uint32(len(entry.Key)))
-		if err != nil {
-			return err
-		}
-		buf.WriteString(entry.Key)
-
-		err = binary.Write(buf, binary.BigEndian, uint32(len(entry.Value)))
-		if err != nil {
-			return err
-		}
-		buf.WriteString(entry.Value)
-
-		if entry.Expiration != nil {
-			buf.WriteByte(1)
-			_ = binary.Write(buf, binary.BigEndian, *entry.Expiration)
-		} else {
-			buf.WriteByte(0)
-		}
-	}
-
 	_, err = file.Write(buf.Bytes())
-	if err != nil {
-		return err
-	}
-
-	return nil
+	return err
 }
 
-func (r *RDB) Load(path string) ([]datatypes.RDBEntry, error) {
-	data, err := os.ReadFile(path)
-	if err != nil {
-		return nil, err
-	}
-
+// DecodeSnapshot reads RDB bytes from data (e.g. in-memory snapshot or network chunk).
+func DecodeSnapshot(data []byte) ([]datatypes.RDBEntry, error) {
 	buf := bytes.NewBuffer(data)
 
 	header := buf.Next(len(Magic))
@@ -145,6 +150,14 @@ func (r *RDB) Load(path string) ([]datatypes.RDBEntry, error) {
 	}
 
 	return entries, nil
+}
+
+func (r *RDB) Load(path string) ([]datatypes.RDBEntry, error) {
+	data, err := os.ReadFile(path)
+	if err != nil {
+		return nil, err
+	}
+	return DecodeSnapshot(data)
 }
 
 func (r *RDB) WriteHeader(file *os.File) error {

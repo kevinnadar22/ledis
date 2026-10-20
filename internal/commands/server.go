@@ -31,7 +31,7 @@ func NewServer(db *store.Store, aof *persistence.AOF, config *config.Config, rdb
 		pubsub:          pubsub,
 		jobs:            make(chan commandJob),
 		watchedKeys: make(map[string]map[*Session]struct{}),
-		repl:        replication.New(config.Port),
+		repl:        replication.New(config.Port, db),
 	}
 	s.startWorker()
 	return s
@@ -56,4 +56,8 @@ func (s *Server) ReplayHandler() func(datatypes.Command) error {
 		sess.run(cmd)
 		return nil
 	}
+}
+
+func (s *Server) MakeMaster() {
+	s.repl.MakeMaster()
 }
