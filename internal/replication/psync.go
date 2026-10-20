@@ -25,7 +25,7 @@ func (c *Coordinator) Psync(conn net.Conn, cmd datatypes.Command, entries []data
 	c.mu.RLock()
 	masterReplID := c.replID
 	masterReplOffset := c.replStartOffset
-	defer c.mu.RUnlock()
+	c.mu.RUnlock()
 
 	// if repldId is ? then we need to send the full sync
 	if replID == "?" {
