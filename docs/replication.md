@@ -13,6 +13,62 @@
 - `REPLICAOF <ip> <port>` makes a server a replica of that master.
 - `REPLICAOF NO ONE` turns a replica back into a master (promotion).
 
+## Full sync (Ledis)
+
+Ledis full sync runs over the same TCP connection the replica opened to the master after `REPLICAOF`. Commands are RESP arrays; replies during handshake are simple strings (`+...\r\n`).
+
+### Handshake sequence
+
+1. Replica → master: `PING` (array).
+2. Master → replica: `+PONG\r\n` (or `+OK\r\n` if the master maps PING that way).
+3. Replica → master: `REPLCONF listening-port <port>`.
+4. Master → replica: `+OK\r\n`.
+5. Replica → master: `REPLCONF capa psync2`.
+6. Master → replica: `+OK\r\n`.
+7. Replica → master: `PSYNC ? -1` (unknown replication ID, request full sync).
+8. Master → replica: `+FULLRESYNC <replid> <offset>\r\n`.
+
+Then the snapshot (below). Implementation: `internal/replication/replicaof.go` (`run`) and `internal/replication/psync.go` on the master.
+
+### Snapshot on the wire
+
+After the `FULLRESYNC` line:
+
+1. A **length line**: decimal `N` followed by `\r\n` (plain text, **not** RESP `$` bulk and **not** `*` array).
+2. **`N` raw bytes** — the Ledis snapshot (`EncodeSnapshot` / `DecodeSnapshot` in `internal/persistence/rdb.go`).
+
+Inside those `N` bytes:
+
+| Field | Format |
+|--------|--------|
+| Magic | 8 bytes: `REDISRDB` |
+| Version | 1 byte (currently `1`) |
+| Per key | `uint32` key length (big-endian), key bytes, `uint32` value length, value bytes, 1-byte expiry flag (`0` = none, `1` = present), and if flag is `1`, `int64` expiry (big-endian) |
+
+This is **not** Redis RDB format; only Ledis master ↔ Ledis replica.
+
+### Replication ID rules
+
+- On startup the master calls `MakeMaster()` (`internal/replication/coordinator.go`): **20 random bytes**, hex-encoded → **40 hex characters** (`replID`). `replStartOffset` starts at **0**.
+- Replica sends `PSYNC <replid> <offset>`. **`?`** means “I don’t know the ID” → master performs **full sync**.
+- Master also full-syncs if the replica’s `replid` **≠** the master’s current `replID`, or if the replica’s offset is **&lt;** `replStartOffset` (see `Psync`).
+
+### Failure cases (current behavior)
+
+| Case | What happens |
+|------|----------------|
+| **Master drops mid-snapshot** | `ReadFullSyncResponse` uses `io.ReadFull` for the body. EOF or reset → error returned, `run` **logs** (`log.Printf`) and **returns** (replication goroutine stops). **No automatic retry.** |
+| **Bad `FULLRESYNC` line** | Wrong shape or bad offset: message printed with `fmt.Printf`, goroutine **returns**. Process does **not** exit (no `log.Fatal`). |
+| **Snapshot decode fails** | Bad magic, version, or corrupt payload: `DecodeSnapshot` errors **before** `RestoreSnapshot` → error logged, goroutine stops; **existing DB unchanged**. |
+
+**Caveat:** On **success**, `RestoreSnapshot` **merges** keys from the snapshot into the store (overwrites overlapping keys); it does **not** `FLUSHALL` first. Stale keys absent from the snapshot can remain until we add a full replace step.
+
+### Not implemented yet
+
+- Live **command propagation** after sync (replica `run` still spins after handshake).
+- Replication **backlog** and partial sync (`+CONTINUE`).
+- **`REPLCONF ACK`**, **`WAIT`**, and offset advancement on writes.
+
 ## Write path on master
 1. Client writes; master applies it to the in-memory DB.
 2. Appends the same command to the backlog and advances its offset.
