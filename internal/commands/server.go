@@ -1,7 +1,6 @@
 package commands
 
 import (
-
 	"sync"
 
 	"github.com/kevinnadar22/ledis/internal/config"
@@ -9,16 +8,15 @@ import (
 	"github.com/kevinnadar22/ledis/internal/persistence"
 	"github.com/kevinnadar22/ledis/internal/replication"
 	"github.com/kevinnadar22/ledis/internal/store"
-
 )
 
 type Server struct {
-	db              *store.Store
-	aof             *persistence.AOF
-	config          *config.Config
-	rdb             *persistence.RDB
-	pubsub          *store.PubSub
-	jobs            chan commandJob // channel to send commands to the worker
+	db          *store.Store
+	aof         *persistence.AOF
+	config      *config.Config
+	rdb         *persistence.RDB
+	pubsub      *store.PubSub
+	jobs        chan commandJob // channel to send commands to the worker
 	watchedKeys map[string]map[*Session]struct{}
 	repl        *replication.Coordinator
 	mu          sync.Mutex
@@ -26,12 +24,12 @@ type Server struct {
 
 func NewServer(db *store.Store, aof *persistence.AOF, config *config.Config, rdb *persistence.RDB, pubsub *store.PubSub) *Server {
 	s := &Server{
-		db:              db,
-		aof:             aof,
-		config:          config,
-		rdb:             rdb,
-		pubsub:          pubsub,
-		jobs:            make(chan commandJob),
+		db:          db,
+		aof:         aof,
+		config:      config,
+		rdb:         rdb,
+		pubsub:      pubsub,
+		jobs:        make(chan commandJob),
 		watchedKeys: make(map[string]map[*Session]struct{}),
 	}
 	s.startWorker()
