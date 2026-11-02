@@ -4,6 +4,7 @@ import (
 	"bufio"
 	"context"
 	"fmt"
+	"io"
 	"log"
 	"net"
 	"strconv"
@@ -29,11 +30,11 @@ func (c *Coordinator) ReplicaOf(cmd datatypes.Command) (string, error) {
 
 	ctx, cancel := context.WithCancel(context.Background())
 	c.mu.Lock()
-	c.stopLocked()
-	c.master.Cancel = cancel
+	c.stopUpstreamLocked()
+	c.upstreamCancel = cancel
 	c.mu.Unlock()
 
-	go c.run(ctx, host.String(), port.String())
+	go c.MakeReplica(ctx, host.String(), port.String())
 	return resp.EncodeSimpleString("OK"), nil
 }
 
@@ -45,7 +46,7 @@ func (c *Coordinator) ReplicaOfNoOne(cmd datatypes.Command) (string, error) {
 	return resp.EncodeSimpleString("OK"), nil
 }
 
-func (c *Coordinator) run(ctx context.Context, host, port string) {
+func (c *Coordinator) MakeReplica(ctx context.Context, host, port string) {
 	conn, err := net.Dial("tcp", fmt.Sprintf("%s:%s", host, port))
 	if err != nil {
 		log.Printf("Failed to connect to master: %v", err)
@@ -56,7 +57,7 @@ func (c *Coordinator) run(ctx context.Context, host, port string) {
 
 	// lock the master connection
 	c.mu.Lock()
-	c.master.Conn = conn
+	c.upstreamConn = conn
 	c.mu.Unlock()
 
 	reader := bufio.NewReader(conn)
@@ -98,11 +99,7 @@ func (c *Coordinator) run(ctx context.Context, host, port string) {
 		return
 	}
 
-	// set masters replication id and offset from the full sync response
-	c.mu.Lock()
-	c.master.replID = replID
-	c.master.replOffset = replStartOffset
-	c.mu.Unlock()
+	c.setUpstreamMaster(replID, replStartOffset)
 
 	// row read the full sync response and write to the replica
 	err = c.ReadFullSyncResponse(reader, c.db)
@@ -120,7 +117,24 @@ func (c *Coordinator) run(ctx context.Context, host, port string) {
 			log.Println("Replication stopped")
 			return
 		default:
-			for {
+			// read the command from the master and execute it on the replica
+			cmdLine, err := resp.DecodeBulkStringsArrayFromReader(reader)
+
+			if err == io.EOF {
+				return
+			}
+			if err != nil {
+				log.Printf("replication stream read: %v", err)
+				return
+			}
+
+			cmd, err := resp.Decode(cmdLine)
+			if err != nil {
+				log.Printf("replication stream decode: %v", err)
+				return
+			}
+			if c.apply != nil {
+				c.apply(cmd)
 			}
 		}
 	}

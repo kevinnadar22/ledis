@@ -14,6 +14,8 @@ import (
 )
 
 func (c *Coordinator) SendFullSyncResponse(conn net.Conn, entries []datatypes.RDBEntry) error {
+	c.PromotePendingToReplica(conn)
+
 	buf, err := persistence.EncodeSnapshot(entries, nil)
 	if err != nil {
 		return err

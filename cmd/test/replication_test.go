@@ -133,7 +133,7 @@ func TestReplicationHandshake(t *testing.T) {
 	host, port, cleanup := runFakeMaster(t, listenPort, nil, &steps)
 	defer cleanup()
 
-	replica := replication.New(listenPort, store.NewStore())
+	replica := replication.New(listenPort, store.NewStore(), nil)
 	if _, err := replica.ReplicaOf(replicaOfCommand(host, port)); err != nil {
 		t.Fatalf("ReplicaOf: %v", err)
 	}
@@ -163,7 +163,7 @@ func TestReplicationFullSync(t *testing.T) {
 	defer cleanup()
 
 	replicaDB := store.NewStore()
-	replica := replication.New(listenPort, replicaDB)
+	replica := replication.New(listenPort, replicaDB, nil)
 	if _, err := replica.ReplicaOf(replicaOfCommand(host, port)); err != nil {
 		t.Fatalf("ReplicaOf: %v", err)
 	}

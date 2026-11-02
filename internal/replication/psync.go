@@ -29,16 +29,22 @@ func (c *Coordinator) Psync(conn net.Conn, cmd datatypes.Command, entries []data
 
 	// if repldId is ? then we need to send the full sync
 	if replID == "?" || replOffset < masterReplOffset || replID != masterReplID {
-		c.writeFullSyncResponse(conn)
+		if err := c.writeFullSyncResponse(conn); err != nil {
+			return "", err
+		}
 		return "", c.SendFullSyncResponse(conn, entries)
 	}
-	
-	c.writeFullSyncResponse(conn)
-	return "", c.SendFullSyncResponse(conn, entries)
+
+	return resp.EncodeSimpleString("CONTINUE"), nil
 }
 
 func (c *Coordinator) writeFullSyncResponse(conn net.Conn) error {
-	r := resp.EncodeSimpleString("FULLRESYNC " + c.replID + " " + strconv.FormatInt(c.replStartOffset, 10))
-	conn.Write([]byte(r))
-	return nil
+	if conn == nil {
+		return fmt.Errorf("psync: nil connection")
+	}
+	c.mu.RLock()
+	line := "FULLRESYNC " + c.replID + " " + strconv.FormatInt(c.replStartOffset, 10)
+	c.mu.RUnlock()
+	_, err := conn.Write([]byte(resp.EncodeSimpleString(line)))
+	return err
 }

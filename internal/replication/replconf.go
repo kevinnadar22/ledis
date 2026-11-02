@@ -23,18 +23,7 @@ func (c *Coordinator) ReplConf(conn net.Conn, defaultPort int, cmd datatypes.Com
 	c.mu.Lock()
 	defer c.mu.Unlock()
 
-	client, ok := c.replicas[conn]
-	if !ok {
-		client, ok = c.pending[conn]
-		if !ok {
-			client = &Client{
-				Conn:          conn,
-				ListeningPort: defaultPort,
-				Capabilities:  make(map[string]bool),
-			}
-			c.pending[conn] = client
-		}
-	}
+	client := c.getClientLocked(conn, defaultPort)
 
 	switch option {
 	case "listening-port":

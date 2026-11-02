@@ -69,6 +69,10 @@ func (sess *Session) run(cmd datatypes.Command) string {
 	if err != nil {
 		return resp.EncodeError(err.Error())
 	}
+
+	if sess.srv.repl.Role == datatypes.RoleMaster && (utils.IsMutatingCommand(cmdStr) || utils.IsTransactionCommand(cmdStr)) {
+		sess.srv.repl.BroadcastCommandToReplicas(cmd)
+	}
 	return str
 }
 

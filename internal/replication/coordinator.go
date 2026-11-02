@@ -2,81 +2,50 @@ package replication
 
 import (
 	"context"
-	"crypto/rand"
-	"encoding/hex"
 	"net"
 	"sync"
 
+	"github.com/kevinnadar22/ledis/internal/datatypes"
 	"github.com/kevinnadar22/ledis/internal/store"
 )
 
-type Client struct {
-	Conn          net.Conn
-	ListeningPort int
-	Capabilities  map[string]bool
-}
+type CommandApplier func(cmd datatypes.Command)
 
-type Master struct {
-	Conn   net.Conn
-	Cancel context.CancelFunc
-	// save replication offset and id
-	replID     string
-	replOffset int64
-}
-
+// Coordinator holds master-side and replica-side replication state for one server.
 type Coordinator struct {
 	mu sync.RWMutex
 
-	// This server's own replication identity and history.
+	Role datatypes.Role
+
+	// Master: identity + downstream replicas.
 	replID          string
 	replOffset      int64
 	replStartOffset int64
+	replicas        map[net.Conn]*datatypes.ReplicationClient
+	pending         map[net.Conn]*datatypes.ReplicationClient
 
-	// master holds a list of replicas
-	replicas map[net.Conn]*Client
-	pending  map[net.Conn]*Client
-
-	// Upstream master, only when this server is a replica.
-	master *Master
+	// Replica: upstream link.
+	upstreamConn   net.Conn
+	upstreamCancel context.CancelFunc
+	upstream       datatypes.UpstreamMaster
 
 	listenPort int
 	db         *store.Store
+	apply      CommandApplier
 }
 
-func New(listenPort int, db *store.Store) *Coordinator {
+func New(listenPort int, db *store.Store, apply CommandApplier) *Coordinator {
 	return &Coordinator{
-		replicas:   make(map[net.Conn]*Client),
-		pending:    make(map[net.Conn]*Client),
+		replicas:   make(map[net.Conn]*datatypes.ReplicationClient),
+		pending:    make(map[net.Conn]*datatypes.ReplicationClient),
 		listenPort: listenPort,
-		master:     &Master{},
 		db:         db,
-	}
-}
-
-func (c *Coordinator) stopLocked() {
-	if c.master.Cancel != nil {
-		c.master.Cancel()
-		c.master.Cancel = nil
+		apply:      apply,
 	}
 }
 
 func (c *Coordinator) Stop() {
 	c.mu.Lock()
 	defer c.mu.Unlock()
-	c.stopLocked()
-}
-
-func (c *Coordinator) MakeMaster() {
-	b := make([]byte, 20)
-	if _, err := rand.Read(b); err != nil {
-		panic(err)
-	}
-	replID := hex.EncodeToString(b)
-	replStartOffset := int64(0)
-	replOffset := int64(0)
-	c.mu.Lock()
-	defer c.mu.Unlock()
-	c.replID = replID
-	c.replStartOffset = replStartOffset
-	c.replOffset = replOffset
+	c.stopUpstreamLocked()
 }

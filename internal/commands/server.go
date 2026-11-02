@@ -1,6 +1,7 @@
 package commands
 
 import (
+
 	"sync"
 
 	"github.com/kevinnadar22/ledis/internal/config"
@@ -8,6 +9,7 @@ import (
 	"github.com/kevinnadar22/ledis/internal/persistence"
 	"github.com/kevinnadar22/ledis/internal/replication"
 	"github.com/kevinnadar22/ledis/internal/store"
+
 )
 
 type Server struct {
@@ -31,9 +33,9 @@ func NewServer(db *store.Store, aof *persistence.AOF, config *config.Config, rdb
 		pubsub:          pubsub,
 		jobs:            make(chan commandJob),
 		watchedKeys: make(map[string]map[*Session]struct{}),
-		repl:        replication.New(config.Port, db),
 	}
 	s.startWorker()
+	s.repl = replication.New(config.Port, db, func(cmd datatypes.Command) { s.Execute(cmd) })
 	return s
 }
 
