@@ -11,13 +11,14 @@ func (c *Coordinator) stopUpstreamLocked() {
 	}
 }
 
-func (c *Coordinator) setUpstreamMaster(replID string, replStartOffset int64) {
+func (c *Coordinator) setUpstreamMaster(masterReplID string, masterReplOffset int64) {
 	c.mu.Lock()
 	defer c.mu.Unlock()
 
-	c.upstream.ReplID = replID
-	c.upstream.ReplOffset = replStartOffset
+	c.upstream.ReplID = masterReplID
+	c.upstream.ReplOffset = masterReplOffset
 	c.Role = datatypes.RoleReplica
+	c.repl_offset = masterReplOffset
 }
 
 func (c *Coordinator) IncrementReplOffset(cmdLine string) {

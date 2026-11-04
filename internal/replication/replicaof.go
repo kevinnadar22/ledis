@@ -91,18 +91,15 @@ func (c *Coordinator) MakeReplica(ctx context.Context, host, port string) {
 		return
 	}
 
-	replID := parts[1]
+	masterReplID := parts[1]
 
-	replStartOffset, err := strconv.ParseInt(parts[2], 10, 64)
+	masterReplOffset, err := strconv.ParseInt(parts[2], 10, 64)
 	if err != nil {
 		fmt.Printf("replication handshake error on invalid FULLRESYNC response: %s", fullSyncResponse)
 		return
 	}
 
-	// set the upstream master
-	c.setUpstreamMaster(replID, replStartOffset)
-	// set local offset as master after fullsync
-	c.repl_offset = replStartOffset
+	c.setUpstreamMaster(masterReplID, masterReplOffset)
 
 	// row read the full sync response and write to the replica
 	err = c.ReadFullSyncResponse(reader, c.db)

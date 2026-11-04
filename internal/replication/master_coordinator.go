@@ -87,11 +87,16 @@ func (c *Coordinator) getClientLocked(conn net.Conn, defaultPort int) *datatypes
 
 func (c *Coordinator) BroadcastCommandToReplicas(cmd datatypes.Command) {
 	c.mu.Lock()
-
+	clients := make([]*datatypes.ReplicationClient, 0, len(c.replicas))
 	for _, client := range c.replicas {
+		clients = append(clients, client)
+	}
+	c.repl_offset += int64(len(cmd.RawContent))
+
+	// increase the master_repl_offset
+	c.mu.Unlock()
+	for _, client := range clients {
 		client.Queue <- cmd
 	}
 
-	c.repl_offset += int64(len(cmd.RawContent))
-	c.mu.Unlock()
 }
