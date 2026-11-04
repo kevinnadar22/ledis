@@ -4,6 +4,7 @@ import (
 	"bufio"
 	"crypto/rand"
 	"encoding/hex"
+	"log"
 	"net"
 	"time"
 
@@ -20,8 +21,8 @@ func (c *Coordinator) MakeMaster() {
 	defer c.mu.Unlock()
 
 	c.replID = hex.EncodeToString(b)
-	c.replStartOffset = 0
-	c.replOffset = 0
+	c.repl_offset = 0
+	c.repl_backlog_first_byte_offset = 0
 	c.Role = datatypes.RoleMaster
 }
 
@@ -55,10 +56,16 @@ func (c *Coordinator) newReplicationClient(conn net.Conn, defaultPort int) *data
 		for {
 			select {
 			case cmd := <-r.Queue:
-				writer.Write([]byte(cmd.RawContent))
+				_, err := writer.Write([]byte(cmd.RawContent))
+				if err != nil {
+					log.Println("error writing to writer:", err)
+				}
 			case <-ticker.C:
 				if writer.Buffered() > 0 {
-					writer.Flush()
+					err := writer.Flush()
+					if err != nil {
+						log.Println("error flushing writer:", err)
+					}
 				}
 			}
 		}
@@ -84,8 +91,12 @@ func (c *Coordinator) BroadcastCommandToReplicas(cmd datatypes.Command) {
 	for _, client := range c.replicas {
 		clients = append(clients, client)
 	}
+	// increase the master_repl_offset
 	c.mu.RUnlock()
 	for _, client := range clients {
 		client.Queue <- cmd
 	}
+	c.mu.Lock()
+	c.repl_offset += int64(len(cmd.RawContent))
+	c.mu.Unlock()
 }

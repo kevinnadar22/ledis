@@ -99,6 +99,7 @@ func (c *Coordinator) MakeReplica(ctx context.Context, host, port string) {
 		return
 	}
 
+	// set the upstream master
 	c.setUpstreamMaster(replID, replStartOffset)
 
 	// row read the full sync response and write to the replica
@@ -119,6 +120,7 @@ func (c *Coordinator) MakeReplica(ctx context.Context, host, port string) {
 		default:
 			// read the command from the master and execute it on the replica
 			cmdLine, err := resp.DecodeBulkStringsArrayFromReader(reader)
+			
 
 			if err == io.EOF {
 				return
@@ -136,6 +138,8 @@ func (c *Coordinator) MakeReplica(ctx context.Context, host, port string) {
 			if c.apply != nil {
 				c.apply(cmd)
 			}
+
+			c.IncrementReplOffset(cmdLine)
 		}
 	}
 }

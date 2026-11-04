@@ -19,3 +19,9 @@ func (c *Coordinator) setUpstreamMaster(replID string, replStartOffset int64) {
 	c.upstream.ReplOffset = replStartOffset
 	c.Role = datatypes.RoleReplica
 }
+
+func (c *Coordinator) IncrementReplOffset(cmdLine string) {
+	c.mu.Lock()
+	defer c.mu.Unlock()
+	c.repl_offset += int64(len(cmdLine))
+}

@@ -61,3 +61,7 @@ func (s *Server) ReplayHandler() func(datatypes.Command) error {
 func (s *Server) MakeMaster() {
 	s.repl.MakeMaster()
 }
+
+func (s *Server) ReplOffset() int64 {
+	return s.repl.ReplOffset()
+}

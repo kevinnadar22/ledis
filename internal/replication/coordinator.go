@@ -18,16 +18,18 @@ type Coordinator struct {
 	Role datatypes.Role
 
 	// Master: identity + downstream replicas.
-	replID          string
-	replOffset      int64
-	replStartOffset int64
-	replicas        map[net.Conn]*datatypes.ReplicationClient
-	pending         map[net.Conn]*datatypes.ReplicationClient
+	replID                         string
+	replicas                       map[net.Conn]*datatypes.ReplicationClient
+	pending                        map[net.Conn]*datatypes.ReplicationClient
+	repl_backlog_first_byte_offset int64
 
 	// Replica: upstream link.
 	upstreamConn   net.Conn
 	upstreamCancel context.CancelFunc
 	upstream       datatypes.UpstreamMaster
+
+	// offsets maintained by all servers, upstream and downstream
+	repl_offset int64
 
 	listenPort int
 	db         *store.Store
@@ -48,4 +50,10 @@ func (c *Coordinator) Stop() {
 	c.mu.Lock()
 	defer c.mu.Unlock()
 	c.stopUpstreamLocked()
+}
+
+func (c *Coordinator) ReplOffset() int64 {
+	c.mu.RLock()
+	defer c.mu.RUnlock()
+	return c.repl_offset
 }
