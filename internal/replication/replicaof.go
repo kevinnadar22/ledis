@@ -101,6 +101,8 @@ func (c *Coordinator) MakeReplica(ctx context.Context, host, port string) {
 
 	// set the upstream master
 	c.setUpstreamMaster(replID, replStartOffset)
+	// set local offset as master after fullsync
+	c.repl_offset = replStartOffset
 
 	// row read the full sync response and write to the replica
 	err = c.ReadFullSyncResponse(reader, c.db)
