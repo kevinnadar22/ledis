@@ -13,6 +13,7 @@ type Config struct {
 	MaxCommandSize    int
 	MaxBulkStringSize int
 	Port              int
+	ReplBacklogSize   int
 }
 
 func Load() (*Config, error) {
@@ -20,6 +21,7 @@ func Load() (*Config, error) {
 	appendFsync := flag.String("appendfsync", "everysec", "no|everysec|always")
 	rdbFile := flag.String("rdb", "", "path to rdb file")
 	maxCommandSize := flag.Int("max-command-size", 1024*1024*1024, "max command size in bytes")
+	replBacklogSize := flag.Int("repl-backlog-size", 1024*1024*1024, "repl backlog size in bytes")
 
 	// 512mb bulk string size
 	maxBulkStringSize := flag.Int("max-bulk-string-size", 512*1024*1024, "max bulk string size in bytes")
@@ -48,5 +50,6 @@ func Load() (*Config, error) {
 		MaxCommandSize:    *maxCommandSize,
 		MaxBulkStringSize: *maxBulkStringSize,
 		Port:              *port,
+		ReplBacklogSize:   *replBacklogSize,
 	}, nil
 }

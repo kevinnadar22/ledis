@@ -73,6 +73,7 @@ func newTestConfig(rdbPath string) *config.Config {
 		RDBFile:           rdbPath,
 		MaxCommandSize:    1024 * 1024 * 1024,
 		MaxBulkStringSize: 512 * 1024 * 1024,
+		ReplBacklogSize:   1024 * 1024,
 	}
 }
 

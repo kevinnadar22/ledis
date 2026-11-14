@@ -4,6 +4,7 @@ import (
 	"bufio"
 	"crypto/rand"
 	"encoding/hex"
+	"errors"
 	"log"
 	"net"
 	"time"
@@ -22,7 +23,6 @@ func (c *Coordinator) MakeMaster() {
 
 	c.replID = hex.EncodeToString(b)
 	c.repl_offset = 0
-	c.repl_backlog_first_byte_offset = 0
 	c.Role = datatypes.RoleMaster
 }
 
@@ -85,18 +85,65 @@ func (c *Coordinator) getClientLocked(conn net.Conn, defaultPort int) *datatypes
 	return client
 }
 
+func (c *Coordinator) HandleBacklog(cmd datatypes.Command) {
+	c.mu.Lock()
+	defer c.mu.Unlock()
+
+	cmdBytes := cmd.ToBytes()
+	backlog := &c.repl_backlog
+
+	for _, b := range cmdBytes {
+		backlog.buf[backlog.ringWriteIndex] = b
+		backlog.ringWriteIndex = (backlog.ringWriteIndex + 1) % backlog.capacity
+		c.repl_offset++
+	}
+	if c.repl_offset >= backlog.capacity {
+		backlog.oldestReplOffset = c.repl_offset - backlog.capacity
+	}
+}
+
+func (c *Coordinator) canServeFromBacklogLocked(offset int64) bool {
+	return offset >= 0 &&
+		offset >= c.repl_backlog.oldestReplOffset &&
+		offset < c.repl_offset
+}
+
+func (c *Coordinator) CanServeFromBacklog(offset int64) bool {
+	c.mu.RLock()
+	defer c.mu.RUnlock()
+	return c.canServeFromBacklogLocked(offset)
+}
+
+func (c *Coordinator) ReadFromBacklog(offset int64) ([]byte, error) {
+	c.mu.RLock()
+	defer c.mu.RUnlock()
+
+	if !c.canServeFromBacklogLocked(offset) {
+		return nil, errors.New("offset is not in backlog")
+	}
+
+	if c.repl_offset < c.repl_backlog.capacity {
+		// Ring not wrapped: stream offset equals physical index for data so far.
+		return c.repl_backlog.buf[offset:c.repl_offset], nil
+	}
+
+	response := make([]byte, 0, c.repl_offset-offset)
+	for streamOff := offset; streamOff < c.repl_offset; streamOff++ {
+		phys := c.repl_backlog.physicalIndex(streamOff)
+		response = append(response, c.repl_backlog.buf[phys])
+	}
+	return response, nil
+}
+
 func (c *Coordinator) BroadcastCommandToReplicas(cmd datatypes.Command) {
 	c.mu.Lock()
 	clients := make([]*datatypes.ReplicationClient, 0, len(c.replicas))
 	for _, client := range c.replicas {
 		clients = append(clients, client)
 	}
-	c.repl_offset += int64(len(cmd.RawContent))
-
-	// increase the master_repl_offset
 	c.mu.Unlock()
 	for _, client := range clients {
 		client.Queue <- cmd
 	}
-
+	c.HandleBacklog(cmd)
 }

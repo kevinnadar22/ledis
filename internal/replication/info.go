@@ -56,8 +56,19 @@ func (c *Coordinator) InfoReplication() string {
 	b.WriteString("master_repl_offset:")
 	b.WriteString(strconv.FormatInt(c.repl_offset, 10))
 	b.WriteString("\r\n")
+	if c.repl_backlog.capacity > 0 {
+		b.WriteString("repl_backlog_active:1\r\n")
+	} else {
+		b.WriteString("repl_backlog_active:0\r\n")
+	}
+	b.WriteString("repl_backlog_size:")
+	b.WriteString(strconv.FormatInt(c.repl_backlog.capacity, 10))
+	b.WriteString("\r\n")
 	b.WriteString("repl_backlog_first_byte_offset:")
-	b.WriteString(strconv.FormatInt(c.repl_backlog_first_byte_offset, 10))
+	b.WriteString(strconv.FormatInt(c.repl_backlog.oldestReplOffset, 10))
+	b.WriteString("\r\n")
+	b.WriteString("repl_backlog_histlen:")
+	b.WriteString(strconv.FormatInt(c.replBacklogHistLenLocked(), 10))
 	b.WriteString("\r\n")
 	b.WriteString("connected_slaves:")
 	b.WriteString(strconv.Itoa(len(c.replicas)))

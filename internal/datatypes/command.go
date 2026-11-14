@@ -57,6 +57,12 @@ func (v Value) String() string {
 	}
 }
 
+func (c *Command) ToBytes() []byte {
+	// convert raw content to bytes
+	bytes := []byte(c.RawContent)
+	return bytes
+}
+
 type Command struct {
 	Cmd        Value
 	Args       []Value

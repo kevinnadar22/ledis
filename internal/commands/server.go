@@ -33,7 +33,8 @@ func NewServer(db *store.Store, aof *persistence.AOF, config *config.Config, rdb
 		watchedKeys: make(map[string]map[*Session]struct{}),
 	}
 	s.startWorker()
-	s.repl = replication.New(config.Port, db, func(cmd datatypes.Command) { s.Execute(cmd) })
+	s.repl = replication.New(config.Port, db, func(cmd datatypes.Command) { s.Execute(cmd) },
+		int64(config.ReplBacklogSize))
 	return s
 }
 

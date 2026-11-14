@@ -60,8 +60,17 @@ func TestInfoReplicationMaster(t *testing.T) {
 	if fields["master_repl_offset"] != "0" {
 		t.Fatalf("master_repl_offset = %q, want 0", fields["master_repl_offset"])
 	}
+	if fields["repl_backlog_active"] != "1" {
+		t.Fatalf("repl_backlog_active = %q, want 1", fields["repl_backlog_active"])
+	}
+	if fields["repl_backlog_size"] != "1048576" {
+		t.Fatalf("repl_backlog_size = %q, want 1048576", fields["repl_backlog_size"])
+	}
 	if fields["repl_backlog_first_byte_offset"] != "0" {
 		t.Fatalf("repl_backlog_first_byte_offset = %q, want 0", fields["repl_backlog_first_byte_offset"])
+	}
+	if fields["repl_backlog_histlen"] != "0" {
+		t.Fatalf("repl_backlog_histlen = %q, want 0", fields["repl_backlog_histlen"])
 	}
 	if fields["connected_slaves"] != "0" {
 		t.Fatalf("connected_slaves = %q, want 0", fields["connected_slaves"])
