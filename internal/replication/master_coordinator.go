@@ -135,12 +135,30 @@ func (c *Coordinator) ReadFromBacklog(startOffset int64) ([]byte, error) {
 	return response, nil
 }
 
+func (c *Coordinator) disconnectReplicaLocked(conn net.Conn) {
+	if conn == nil {
+		return
+	}
+	addr := conn.RemoteAddr()
+	delete(c.replicas, conn)
+	delete(c.pending, conn)
+	if err := conn.Close(); err != nil {
+		log.Printf("replication: close replica %v: %v", addr, err)
+		return
+	}
+	log.Printf("replication: disconnected slow replica %s (output buffer full)", addr)
+}
+
 func (c *Coordinator) BroadcastCommandToReplicas(cmd datatypes.Command) {
 	c.mu.Lock()
 	defer c.mu.Unlock()
 
 	c.appendToBacklogLocked(cmd)
-	for _, client := range c.replicas {
-		client.Queue <- cmd
+	for conn, client := range c.replicas {
+		select {
+		case client.Queue <- cmd:
+		default:
+			c.disconnectReplicaLocked(conn)
+		}
 	}
 }
