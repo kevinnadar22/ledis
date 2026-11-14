@@ -1,14 +1,27 @@
 package replication
 
 import (
+	"context"
+
 	"github.com/kevinnadar22/ledis/internal/datatypes"
 )
+
+func (c *Coordinator) setUpstream(host, port string, cancel context.CancelFunc) {
+	c.mu.Lock()
+	defer c.mu.Unlock()
+	c.stopUpstreamLocked()
+	c.upstream.Host = host
+	c.upstream.Port = port
+	c.upstreamCancel = cancel
+}
 
 func (c *Coordinator) stopUpstreamLocked() {
 	if c.upstreamCancel != nil {
 		c.upstreamCancel()
 		c.upstreamCancel = nil
 	}
+	c.upstreamConn = nil
+	c.upstream = datatypes.UpstreamMaster{}
 }
 
 func (c *Coordinator) setUpstreamMaster(masterReplID string, masterReplOffset int64) {

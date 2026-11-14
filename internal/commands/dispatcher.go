@@ -123,6 +123,8 @@ func getHandler(sess *Session, cmdStr string) func(datatypes.Command) (string, e
 		handler = sess.ReplConf
 	case "PSYNC":
 		handler = sess.Psync
+	case "INFO":
+		handler = sess.Info
 	default:
 		return nil
 	}

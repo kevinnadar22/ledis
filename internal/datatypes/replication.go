@@ -14,6 +14,8 @@ type ReplicationClient struct {
 }
 
 type UpstreamMaster struct {
+	Host       string
+	Port       string
 	ReplID     string
 	ReplOffset int64
 }

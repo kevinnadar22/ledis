@@ -1,0 +1,110 @@
+{
+  "version": "2.0.0",
+  "tasks": [
+    {
+      "label": "ledis: master (7379)",
+      "type": "shell",
+      "command": "go run ./cmd/server/main.go -appendonly=false -port=7379",
+      "options": {
+        "cwd": "${workspaceFolder}"
+      },
+      "isBackground": true,
+      "problemMatcher": {
+        "owner": "ledis",
+        "pattern": {
+          "regexp": "^(.*)$"
+        },
+        "background": {
+          "activeOnStart": true,
+          "beginsPattern": ".",
+          "endsPattern": "Listening on port 7379"
+        }
+      },
+      "presentation": {
+        "reveal": "always",
+        "panel": "dedicated",
+        "group": "ledis",
+        "clear": true
+      }
+    },
+    {
+      "label": "ledis: replica (7380)",
+      "type": "shell",
+      "command": "sleep 1 && go run ./cmd/server/main.go -appendonly=false -port=7380",
+      "options": {
+        "cwd": "${workspaceFolder}"
+      },
+      "isBackground": true,
+      "problemMatcher": {
+        "owner": "ledis",
+        "pattern": {
+          "regexp": "^(.*)$"
+        },
+        "background": {
+          "activeOnStart": true,
+          "beginsPattern": ".",
+          "endsPattern": "Listening on port 7380"
+        }
+      },
+      "presentation": {
+        "reveal": "always",
+        "panel": "dedicated",
+        "group": "ledis",
+        "clear": true
+      }
+    },
+    {
+      "label": "ledis: REPLICAOF",
+      "type": "shell",
+      "command": "sleep 3 && redis-cli -p 7380 REPLICAOF 127.0.0.1 7379",
+      "options": {
+        "cwd": "${workspaceFolder}"
+      },
+      "presentation": {
+        "reveal": "always",
+        "panel": "dedicated",
+        "group": "ledis",
+        "close": true
+      }
+    },
+    {
+      "label": "ledis: redis-cli master",
+      "type": "shell",
+      "command": "sleep 4 && redis-cli -p 7379",
+      "options": {
+        "cwd": "${workspaceFolder}"
+      },
+      "presentation": {
+        "reveal": "always",
+        "panel": "dedicated",
+        "group": "ledis",
+        "focus": true
+      }
+    },
+    {
+      "label": "ledis: redis-cli replica",
+      "type": "shell",
+      "command": "sleep 4 && redis-cli -p 7380",
+      "options": {
+        "cwd": "${workspaceFolder}"
+      },
+      "presentation": {
+        "reveal": "always",
+        "panel": "dedicated",
+        "group": "ledis"
+      }
+    },
+    {
+      "label": "Ledis replication lab (4 terminals)",
+      "dependsOn": [
+        "ledis: master (7379)",
+        "ledis: replica (7380)",
+        "ledis: REPLICAOF",
+        "ledis: redis-cli master",
+        "ledis: redis-cli replica"
+      ],
+      "dependsOrder": "parallel",
+      "problemMatcher": []
+    }
+  ]
+}

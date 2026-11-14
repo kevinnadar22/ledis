@@ -29,12 +29,10 @@ func (c *Coordinator) ReplicaOf(cmd datatypes.Command) (string, error) {
 	}
 
 	ctx, cancel := context.WithCancel(context.Background())
-	c.mu.Lock()
-	c.stopUpstreamLocked()
-	c.upstreamCancel = cancel
-	c.mu.Unlock()
+	masterHost, masterPort := host.String(), port.String()
+	c.setUpstream(masterHost, masterPort, cancel)
 
-	go c.MakeReplica(ctx, host.String(), port.String())
+	go c.MakeReplica(ctx, masterHost, masterPort)
 	return resp.EncodeSimpleString("OK"), nil
 }
 
@@ -119,7 +117,6 @@ func (c *Coordinator) MakeReplica(ctx context.Context, host, port string) {
 		default:
 			// read the command from the master and execute it on the replica
 			cmdLine, err := resp.DecodeBulkStringsArrayFromReader(reader)
-			
 
 			if err == io.EOF {
 				return
