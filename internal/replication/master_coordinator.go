@@ -97,15 +97,17 @@ func (c *Coordinator) HandleBacklog(cmd datatypes.Command) {
 		backlog.ringWriteIndex = (backlog.ringWriteIndex + 1) % backlog.capacity
 		c.repl_offset++
 	}
+
+	// If the ring is full, update the oldest replication offset.
+	// if repl offset is 5, means 5 bytes are written
+	// and capacity is 4, 5-4 is 1, first index in the ring is the oldestbyte
 	if c.repl_offset >= backlog.capacity {
 		backlog.oldestReplOffset = c.repl_offset - backlog.capacity
 	}
 }
 
 func (c *Coordinator) canServeFromBacklogLocked(offset int64) bool {
-	return offset >= 0 &&
-		offset >= c.repl_backlog.oldestReplOffset &&
-		offset < c.repl_offset
+	return offset >= c.repl_backlog.oldestReplOffset && offset < c.repl_offset
 }
 
 func (c *Coordinator) CanServeFromBacklog(offset int64) bool {
