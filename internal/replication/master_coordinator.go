@@ -96,22 +96,21 @@ func (c *Coordinator) appendToBacklogLocked(cmd datatypes.Command) {
 	backlog := &c.repl_backlog
 
 	for _, b := range cmdBytes {
-		backlog.buf[backlog.ringWriteIndex] = b
+		backlog.buf[backlog.ringWriteIndex] = b // physical write
 		backlog.ringWriteIndex = (backlog.ringWriteIndex + 1) % backlog.capacity
-		c.repl_offset++
+		c.repl_offset++ // advance replication stream
 	}
 
-	// If the ring is full, update the oldest replication offset.
-	// if repl offset is 5, means 5 bytes are written
-	// and capacity is 4, 5-4 is 1, first index in the ring is the oldestbyte
 	if c.repl_offset >= backlog.capacity {
 		backlog.oldestReplOffset = c.repl_offset - backlog.capacity
 	}
 }
 
-func (c *Coordinator) canServeFromBacklogLocked(offset int64) bool {
-	return offset >= c.repl_backlog.oldestReplOffset &&
-		offset < c.repl_offset
+// canServeFromBacklogLocked checks a replication stream offset (PSYNC offset), not a buf index.
+// offset == repl_offset means caught up (CONTINUE, zero backlog bytes).
+func (c *Coordinator) canServeFromBacklogLocked(streamOffset int64) bool {
+	return streamOffset >= c.repl_backlog.oldestReplOffset &&
+		streamOffset <= c.repl_offset
 }
 
 func (c *Coordinator) CanServeFromBacklog(offset int64) bool {
@@ -120,17 +119,18 @@ func (c *Coordinator) CanServeFromBacklog(offset int64) bool {
 	return c.canServeFromBacklogLocked(offset)
 }
 
-func (c *Coordinator) ReadFromBacklog(offset int64) ([]byte, error) {
+// ReadFromBacklog reads stream bytes [startOffset, repl_offset). startOffset is a stream offset.
+func (c *Coordinator) ReadFromBacklog(startOffset int64) ([]byte, error) {
 	c.mu.RLock()
 	defer c.mu.RUnlock()
 
-	if !c.canServeFromBacklogLocked(offset) {
+	if !c.canServeFromBacklogLocked(startOffset) {
 		return nil, errors.New("offset is not in backlog")
 	}
-	response := make([]byte, 0, c.repl_offset-offset)
-	for streamOff := offset; streamOff < c.repl_offset; streamOff++ {
-		phys := c.repl_backlog.physicalIndex(streamOff)
-		response = append(response, c.repl_backlog.buf[phys])
+	response := make([]byte, 0, c.repl_offset-startOffset)
+	for streamOff := startOffset; streamOff < c.repl_offset; streamOff++ {
+		bufIndex := c.repl_backlog.physicalIndex(streamOff)
+		response = append(response, c.repl_backlog.buf[bufIndex])
 	}
 	return response, nil
 }

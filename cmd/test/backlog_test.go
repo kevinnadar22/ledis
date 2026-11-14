@@ -38,6 +38,29 @@ func TestBacklogReadInsideWindow(t *testing.T) {
 	}
 }
 
+func TestBacklogCaughtUpOffsetCanServeEmptyRead(t *testing.T) {
+	c := newReplBacklogMaster(t, 8)
+	recordReplBytes(c, "abcd")
+
+	off := c.ReplOffset()
+	if off != 4 {
+		t.Fatalf("repl_offset = %d, want 4", off)
+	}
+	if !c.CanServeFromBacklog(off) {
+		t.Fatal("fully caught up offset should be servable (CONTINUE, zero backlog bytes)")
+	}
+	got, err := c.ReadFromBacklog(off)
+	if err != nil {
+		t.Fatalf("ReadFromBacklog(%d): %v", off, err)
+	}
+	if len(got) != 0 {
+		t.Fatalf("ReadFromBacklog at repl_offset: got %d bytes, want 0", len(got))
+	}
+	if c.CanServeFromBacklog(off + 1) {
+		t.Fatal("offset beyond master repl_offset must not be servable")
+	}
+}
+
 func TestBacklogRefuseEvictedOffset(t *testing.T) {
 	c := newReplBacklogMaster(t, 4)
 	recordReplBytes(c, "abcde")

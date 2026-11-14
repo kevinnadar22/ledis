@@ -11,17 +11,18 @@ import (
 
 type CommandApplier func(cmd datatypes.Command)
 
-// ReplBacklog is a fixed-size ring of raw replication bytes plus stream bounds.
+// ReplBacklog stores replication bytes in a ring. Two coordinate systems:
+//   - Stream offsets: monotonic positions in the master's byte stream (0, 1, 2, …).
+//   - Physical indices: slots in buf, always in [0, capacity).
+// Before the ring wraps, stream offset often equals buf index; after wrap use streamOffset % capacity.
 type ReplBacklog struct {
-	// Replication stream (logical byte positions on the master).
-	oldestReplOffset int64 // oldest stream offset still present in the ring
-
-	// Physical ring buffer (indices 0 .. capacity-1).
-	ringWriteIndex int64 // next buf slot to write
-	capacity       int64
-	buf            []byte
+	oldestReplOffset int64 // stream: oldest byte still kept in the ring
+	ringWriteIndex   int64 // physical: next buf slot to write
+	capacity         int64 // physical: len(buf)
+	buf              []byte
 }
 
+// physicalIndex maps a replication stream offset to a ring buffer slot.
 func (b *ReplBacklog) physicalIndex(streamOffset int64) int64 {
 	return streamOffset % b.capacity
 }
@@ -45,7 +46,8 @@ type Coordinator struct {
 	upstreamCancel context.CancelFunc
 	upstream       datatypes.UpstreamMaster
 
-	// offsets maintained by all servers, upstream and downstream
+	// repl_offset is a replication stream offset (not a buf index): next byte position
+	// the master will assign; also the replica's processed offset when caught up.
 	repl_offset int64
 
 	listenPort int
@@ -87,7 +89,7 @@ func (c *Coordinator) OldestReplOffset() int64 {
 	return c.repl_backlog.oldestReplOffset
 }
 
-// replBacklogHistLen is bytes retained in the ring [oldestReplOffset, repl_offset).
+// replBacklogHistLen is stream bytes retained: repl_offset - oldestReplOffset.
 func (c *Coordinator) replBacklogHistLenLocked() int64 {
 	if c.repl_offset <= c.repl_backlog.oldestReplOffset {
 		return 0
