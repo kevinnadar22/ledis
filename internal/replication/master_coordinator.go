@@ -107,7 +107,7 @@ func (c *Coordinator) HandleBacklog(cmd datatypes.Command) {
 }
 
 func (c *Coordinator) canServeFromBacklogLocked(offset int64) bool {
-	return offset >= c.repl_backlog.oldestReplOffset && offset < c.repl_offset
+	return offset >= c.repl_backlog.oldestReplOffset && offset <= c.repl_offset
 }
 
 func (c *Coordinator) CanServeFromBacklog(offset int64) bool {
@@ -123,12 +123,6 @@ func (c *Coordinator) ReadFromBacklog(offset int64) ([]byte, error) {
 	if !c.canServeFromBacklogLocked(offset) {
 		return nil, errors.New("offset is not in backlog")
 	}
-
-	if c.repl_offset < c.repl_backlog.capacity {
-		// Ring not wrapped: stream offset equals physical index for data so far.
-		return c.repl_backlog.buf[offset:c.repl_offset], nil
-	}
-
 	response := make([]byte, 0, c.repl_offset-offset)
 	for streamOff := offset; streamOff < c.repl_offset; streamOff++ {
 		phys := c.repl_backlog.physicalIndex(streamOff)
