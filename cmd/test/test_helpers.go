@@ -115,6 +115,11 @@ func handleTestConnection(conn net.Conn, srv *commands.Server, cfg *config.Confi
 
 func startTCPLedis(t *testing.T, asMaster bool) *tcpLedis {
 	t.Helper()
+	return startTCPLedisWithConfig(t, asMaster, nil)
+}
+
+func startTCPLedisWithConfig(t *testing.T, asMaster bool, cfg *config.Config) *tcpLedis {
+	t.Helper()
 
 	ln, err := net.Listen("tcp", "127.0.0.1:0")
 	if err != nil {
@@ -137,7 +142,9 @@ func startTCPLedis(t *testing.T, asMaster bool) *tcpLedis {
 		t.Fatalf("aof: %v", err)
 	}
 
-	cfg := newTestConfig("")
+	if cfg == nil {
+		cfg = newTestConfig("")
+	}
 	cfg.Port = port
 	db := store.NewStore()
 	srv := commands.NewServer(db, aof, cfg, newTestRDB(), store.NewPubSub())

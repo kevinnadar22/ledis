@@ -151,6 +151,8 @@ In `cmd/test/backlog_test.go` (not `internal/`):
 go test -race ./cmd/test/... -run TestBacklog
 ```
 
+Slow replica drop (non-blocking enqueue): `cmd/test/slow_replica_test.go` — `TestSlowReplicaDroppedMasterDoesNotStall` uses a stalled replica TCP client and large `SET`s so the output queue (default 1000) fills and the master drops the replica without stalling writes (`connected_slaves` → 0).
+
 Tests call `HandleBacklog` directly on a coordinator; production path is `BroadcastCommandToReplicas` → `appendToBacklogLocked`.
 
 ---

@@ -2,6 +2,7 @@ package replication
 
 import (
 	"bufio"
+	"context"
 	"crypto/rand"
 	"encoding/hex"
 	"errors"
@@ -42,10 +43,13 @@ func (c *Coordinator) PromotePendingToReplica(conn net.Conn) {
 }
 
 func (c *Coordinator) newReplicationClient(conn net.Conn, defaultPort int) *datatypes.ReplicationClient {
+	ctx, cancel := context.WithCancel(context.Background())
 	r := &datatypes.ReplicationClient{
 		ListeningPort: defaultPort,
 		Capabilities:  make(map[string]bool),
 		Queue:         make(chan datatypes.Command, 1000),
+		Ctx:           ctx,
+		Cancel:        cancel,
 	}
 	go func() {
 		writer := bufio.NewWriterSize(conn, 32*1024) // 32KB buffer
@@ -60,6 +64,8 @@ func (c *Coordinator) newReplicationClient(conn net.Conn, defaultPort int) *data
 				if err != nil {
 					log.Println("error writing to writer:", err)
 				}
+			case <-ctx.Done():
+				return 
 			case <-ticker.C:
 				if writer.Buffered() > 0 {
 					err := writer.Flush()
@@ -140,12 +146,13 @@ func (c *Coordinator) disconnectReplicaLocked(conn net.Conn) {
 		return
 	}
 	addr := conn.RemoteAddr()
+
+	client := c.getClientLocked(conn, 0)
+	if client != nil {
+		client.Cancel()
+	}
 	delete(c.replicas, conn)
 	delete(c.pending, conn)
-	if err := conn.Close(); err != nil {
-		log.Printf("replication: close replica %v: %v", addr, err)
-		return
-	}
 	log.Printf("replication: disconnected slow replica %s (output buffer full)", addr)
 }
 

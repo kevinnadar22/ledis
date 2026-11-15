@@ -14,17 +14,13 @@ type CommandApplier func(cmd datatypes.Command)
 // ReplBacklog stores replication bytes in a ring. Two coordinate systems:
 //   - Stream offsets: monotonic positions in the master's byte stream (0, 1, 2, …).
 //   - Physical indices: slots in buf, always in [0, capacity).
+//
 // Before the ring wraps, stream offset often equals buf index; after wrap use streamOffset % capacity.
 type ReplBacklog struct {
 	oldestReplOffset int64 // stream: oldest byte still kept in the ring
 	ringWriteIndex   int64 // physical: next buf slot to write
 	capacity         int64 // physical: len(buf)
 	buf              []byte
-}
-
-// physicalIndex maps a replication stream offset to a ring buffer slot.
-func (b *ReplBacklog) physicalIndex(streamOffset int64) int64 {
-	return streamOffset % b.capacity
 }
 
 // Coordinator holds master-side and replica-side replication state for one server.
@@ -55,13 +51,18 @@ type Coordinator struct {
 	apply      CommandApplier
 }
 
+// physicalIndex maps a replication stream offset to a ring buffer slot.
+func (b *ReplBacklog) physicalIndex(streamOffset int64) int64 {
+	return streamOffset % b.capacity
+}
+
 func New(listenPort int, db *store.Store, apply CommandApplier, replBacklogSize int64) *Coordinator {
 	return &Coordinator{
-		replicas:     make(map[net.Conn]*datatypes.ReplicationClient),
-		pending:      make(map[net.Conn]*datatypes.ReplicationClient),
-		listenPort:   listenPort,
-		db:           db,
-		apply:        apply,
+		replicas:   make(map[net.Conn]*datatypes.ReplicationClient),
+		pending:    make(map[net.Conn]*datatypes.ReplicationClient),
+		listenPort: listenPort,
+		db:         db,
+		apply:      apply,
 		repl_backlog: ReplBacklog{
 			buf:              make([]byte, replBacklogSize),
 			capacity:         replBacklogSize,
