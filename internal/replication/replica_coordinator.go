@@ -9,13 +9,17 @@ import (
 func (c *Coordinator) setUpstream(host, port string, cancel context.CancelFunc) {
 	c.mu.Lock()
 	defer c.mu.Unlock()
-	c.stopUpstreamLocked()
+	c.StopUpstream(false)
 	c.upstream.Host = host
 	c.upstream.Port = port
 	c.upstreamCancel = cancel
 }
 
-func (c *Coordinator) stopUpstreamLocked() {
+func (c *Coordinator) StopUpstream(lock bool) {
+	if lock {
+		c.mu.Lock()
+		defer c.mu.Unlock()
+	}
 	if c.upstreamCancel != nil {
 		c.upstreamCancel()
 		c.upstreamCancel = nil

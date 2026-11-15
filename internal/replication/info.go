@@ -68,7 +68,7 @@ func (c *Coordinator) InfoReplication() string {
 	b.WriteString(strconv.FormatInt(c.repl_backlog.oldestReplOffset, 10))
 	b.WriteString("\r\n")
 	b.WriteString("repl_backlog_histlen:")
-	b.WriteString(strconv.FormatInt(c.replBacklogHistLenLocked(), 10))
+	b.WriteString(strconv.FormatInt(c.ReplBacklogHistLen(false), 10))
 	b.WriteString("\r\n")
 	b.WriteString("connected_slaves:")
 	b.WriteString(strconv.Itoa(len(c.replicas)))
