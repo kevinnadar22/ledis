@@ -66,3 +66,7 @@ func (s *Server) MakeMaster() {
 func (s *Server) ReplOffset() int64 {
 	return s.repl.ReplOffset()
 }
+
+func (s *Server) ReadReplicationBacklog(start int64) ([]byte, error) {
+	return s.repl.ReadFromBacklog(start)
+}

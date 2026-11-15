@@ -63,8 +63,9 @@ func (c *Coordinator) newReplicationClient(conn net.Conn, defaultPort int) *data
 				_, err := writer.Write([]byte(cmd.RawContent))
 				if err != nil {
 					log.Println("error writing to writer:", err)
+					c.disconnectReplicaLocked(conn)
 				}
-			case <-ctx.Done():
+			case <-r.Ctx.Done():
 				return 
 			case <-ticker.C:
 				if writer.Buffered() > 0 {
@@ -153,6 +154,13 @@ func (c *Coordinator) disconnectReplicaLocked(conn net.Conn) {
 	}
 	delete(c.replicas, conn)
 	delete(c.pending, conn)
+	log.Printf("replication: disconnected slow replica %s (output buffer full)", addr)
+
+	// close the connection
+	if err := conn.Close(); err != nil {
+		log.Printf("replication: close replica %v: %v", addr, err)
+		return
+	}
 	log.Printf("replication: disconnected slow replica %s (output buffer full)", addr)
 }
 
