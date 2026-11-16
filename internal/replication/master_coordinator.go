@@ -73,6 +73,8 @@ func (c *Coordinator) newReplicationClient(conn net.Conn, defaultPort int) *data
 					err := writer.Flush()
 					if err != nil {
 						log.Println("error flushing writer:", err)
+						go c.DisconnectReplica(conn)
+						return
 					}
 				}
 			}

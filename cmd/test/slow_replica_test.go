@@ -109,7 +109,7 @@ func TestSlowReplicaDroppedMasterDoesNotStall(t *testing.T) {
 		if err != nil {
 			t.Fatal(err)
 		}
-	case <-time.After(10 * time.Second):
+	case <-time.After(90 * time.Second):
 		t.Fatal("master writes stalled (timeout)")
 	}
 

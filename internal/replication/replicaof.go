@@ -32,7 +32,7 @@ func (c *Coordinator) ReplicaOf(cmd datatypes.Command) (string, error) {
 	masterHost, masterPort := host.String(), port.String()
 	c.setUpstream(masterHost, masterPort, cancel)
 
-	go c.MakeReplica(ctx, masterHost, masterPort)
+	go c.StartReplicaLoop(ctx, masterHost, masterPort)
 	return resp.EncodeSimpleString("OK"), nil
 }
 
@@ -44,7 +44,7 @@ func (c *Coordinator) ReplicaOfNoOne(cmd datatypes.Command) (string, error) {
 	return resp.EncodeSimpleString("OK"), nil
 }
 
-func (c *Coordinator) MakeReplica(ctx context.Context, host, port string) {
+func (c *Coordinator) StartReplicaLoop(ctx context.Context, host, port string) {
 	conn, err := net.Dial("tcp", fmt.Sprintf("%s:%s", host, port))
 	if err != nil {
 		log.Printf("Failed to connect to master: %v", err)
