@@ -74,3 +74,7 @@ func (s *Server) MasterReplID() string {
 func (s *Server) ReadReplicationBacklog(replID string, start int64) ([]byte, error) {
 	return s.repl.ReadFromBacklog(replID, start)
 }
+
+func (s *Server) CloseReplicationUpstreamLink() {
+	s.repl.CloseUpstreamLink()
+}

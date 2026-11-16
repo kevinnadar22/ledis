@@ -20,7 +20,21 @@ func (c *Coordinator) stopUpstreamLocked() {
 		c.upstreamCancel()
 		c.upstreamCancel = nil
 	}
+	if c.upstreamConn != nil {
+		_ = c.upstreamConn.Close()
+		c.upstreamConn = nil
+	}
+}
+
+// CloseUpstreamLink closes the upstream TCP connection (e.g. simulated network drop).
+func (c *Coordinator) CloseUpstreamLink() {
+	c.mu.Lock()
+	conn := c.upstreamConn
 	c.upstreamConn = nil
+	c.mu.Unlock()
+	if conn != nil {
+		_ = conn.Close()
+	}
 }
 
 func (c *Coordinator) setUpstreamMaster(masterReplID string, masterReplOffset int64) {
