@@ -131,25 +131,35 @@ func (c *Coordinator) appendToBacklogLocked(cmd datatypes.Command) {
 	}
 }
 
-// canServeFromBacklogLocked checks a replication stream offset (PSYNC offset), not a buf index.
+// MasterReplID is the replication run id issued at MakeMaster (master_replid).
+func (c *Coordinator) MasterReplID() string {
+	c.mu.RLock()
+	defer c.mu.RUnlock()
+	return c.replID
+}
+
+// canServeFromBacklogLocked checks repl id + stream offset for partial resync; caller must hold c.mu (R or W).
 // offset == repl_offset means caught up (CONTINUE, zero backlog bytes).
-func (c *Coordinator) canServeFromBacklogLocked(streamOffset int64) bool {
+func (c *Coordinator) canServeFromBacklogLocked(replID string, streamOffset int64) bool {
+	if replID == "" || replID == "?" || replID != c.replID {
+		return false
+	}
 	return streamOffset >= c.repl_backlog.oldestReplOffset &&
 		streamOffset <= c.repl_offset
 }
 
-func (c *Coordinator) CanServeFromBacklog(offset int64) bool {
+func (c *Coordinator) CanServeFromBacklog(replID string, offset int64) bool {
 	c.mu.RLock()
 	defer c.mu.RUnlock()
-	return c.canServeFromBacklogLocked(offset)
+	return c.canServeFromBacklogLocked(replID, offset)
 }
 
 // ReadFromBacklog reads stream bytes [startOffset, repl_offset). startOffset is a stream offset.
-func (c *Coordinator) ReadFromBacklog(startOffset int64) ([]byte, error) {
+func (c *Coordinator) ReadFromBacklog(replID string, startOffset int64) ([]byte, error) {
 	c.mu.RLock()
 	defer c.mu.RUnlock()
 
-	if !c.canServeFromBacklogLocked(startOffset) {
+	if !c.canServeFromBacklogLocked(replID, startOffset) {
 		return nil, errors.New("offset is not in backlog")
 	}
 	response := make([]byte, 0, c.repl_offset-startOffset)

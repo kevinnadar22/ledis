@@ -26,7 +26,7 @@ func TestBacklogReadInsideWindow(t *testing.T) {
 	c := newReplBacklogMaster(t, 8)
 	recordReplBytes(c, "abcd")
 
-	got, err := c.ReadFromBacklog(0)
+	got, err := c.ReadFromBacklog(c.MasterReplID(), 0)
 	if err != nil {
 		t.Fatalf("ReadFromBacklog: %v", err)
 	}
@@ -46,18 +46,24 @@ func TestBacklogCaughtUpOffsetCanServeEmptyRead(t *testing.T) {
 	if off != 4 {
 		t.Fatalf("repl_offset = %d, want 4", off)
 	}
-	if !c.CanServeFromBacklog(off) {
+	if !c.CanServeFromBacklog(c.MasterReplID(), off) {
 		t.Fatal("fully caught up offset should be servable (CONTINUE, zero backlog bytes)")
 	}
-	got, err := c.ReadFromBacklog(off)
+	got, err := c.ReadFromBacklog(c.MasterReplID(), off)
 	if err != nil {
 		t.Fatalf("ReadFromBacklog(%d): %v", off, err)
 	}
 	if len(got) != 0 {
 		t.Fatalf("ReadFromBacklog at repl_offset: got %d bytes, want 0", len(got))
 	}
-	if c.CanServeFromBacklog(off + 1) {
+	if c.CanServeFromBacklog(c.MasterReplID(), off+1) {
 		t.Fatal("offset beyond master repl_offset must not be servable")
+	}
+	if c.CanServeFromBacklog("wrong-repl-id", off) {
+		t.Fatal("wrong master_replid must not be servable")
+	}
+	if c.CanServeFromBacklog("?", off) {
+		t.Fatal("? replid must not be servable from backlog")
 	}
 }
 
@@ -65,15 +71,15 @@ func TestBacklogRefuseEvictedOffset(t *testing.T) {
 	c := newReplBacklogMaster(t, 4)
 	recordReplBytes(c, "abcde")
 
-	if c.CanServeFromBacklog(0) {
+	if c.CanServeFromBacklog(c.MasterReplID(), 0) {
 		t.Fatal("offset 0 should be evicted after wrap")
 	}
-	_, err := c.ReadFromBacklog(0)
+	_, err := c.ReadFromBacklog(c.MasterReplID(), 0)
 	if err == nil {
 		t.Fatal("expected error reading evicted offset")
 	}
 
-	got, err := c.ReadFromBacklog(1)
+	got, err := c.ReadFromBacklog(c.MasterReplID(), 1)
 	if err != nil {
 		t.Fatalf("ReadFromBacklog(1): %v", err)
 	}
@@ -102,7 +108,7 @@ func TestBacklogWrapReadBack(t *testing.T) {
 		t.Fatalf("oldestReplOffset = %d, want %d", oldest, end-4)
 	}
 
-	got, err := c.ReadFromBacklog(oldest)
+	got, err := c.ReadFromBacklog(c.MasterReplID(), oldest)
 	if err != nil {
 		t.Fatalf("ReadFromBacklog(%d): %v", oldest, err)
 	}
@@ -147,8 +153,9 @@ func TestBacklogRace(t *testing.T) {
 						continue
 					}
 					start := off - 1
-					if c.CanServeFromBacklog(start) {
-						_, _ = c.ReadFromBacklog(start)
+					id := c.MasterReplID()
+					if c.CanServeFromBacklog(id, start) {
+						_, _ = c.ReadFromBacklog(id, start)
 					}
 				}
 			}

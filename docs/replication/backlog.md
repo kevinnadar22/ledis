@@ -79,9 +79,10 @@ Question: should a fully caught-up replica (`offset == repl_offset`) be “in th
 **Yes.** We use:
 
 ```text
-oldestReplOffset <= streamOffset <= repl_offset
+replID == master_replid && oldestReplOffset <= streamOffset <= repl_offset
 ```
 
+- **`replID`** must match the master’s current **`master_replid`** (`?` or a stale id → not servable → full resync).
 - **`offset == repl_offset`**: servable → partial path can return **zero** backlog bytes and **`+CONTINUE`** (not full resync).
 - **`offset > repl_offset`**: not servable (replica ahead of master — invalid).
 - **`offset < oldestReplOffset`**: not servable (too old — evicted from ring → full resync).

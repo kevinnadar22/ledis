@@ -73,36 +73,9 @@ func (c *Coordinator) StartReplicaLoop(ctx context.Context, host, port string) {
 		}
 	}
 
-	conn.Write([]byte(resp.EncodeArray([]string{"PSYNC", "?", "-1"})))
-
-	fullSyncResponse, err := resp.DecodeSimpleStringFromReader(reader)
+	err = c.PerformPartialSync(conn, reader)
 	if err != nil {
-		log.Printf("replication handshake error on reading full sync response: %v", err)
-		return
-	}
-
-	fmt.Println("full sync response:", fullSyncResponse)
-
-	parts := strings.Fields(fullSyncResponse)
-	if len(parts) != 3 || parts[0] != "FULLRESYNC" {
-		fmt.Printf("replication handshake error on invalid FULLRESYNC response: %s", fullSyncResponse)
-		return
-	}
-
-	masterReplID := parts[1]
-
-	masterReplOffset, err := strconv.ParseInt(parts[2], 10, 64)
-	if err != nil {
-		fmt.Printf("replication handshake error on invalid FULLRESYNC response: %s", fullSyncResponse)
-		return
-	}
-
-	c.setUpstreamMaster(masterReplID, masterReplOffset)
-
-	// row read the full sync response and write to the replica
-	err = c.ReadFullSyncResponse(reader, c.db)
-	if err != nil {
-		log.Printf("replication handshake error on reading full sync response from master: %v", err)
+		log.Printf("replication handshake error on sending psync request: %v", err)
 		return
 	}
 
@@ -115,27 +88,13 @@ func (c *Coordinator) StartReplicaLoop(ctx context.Context, host, port string) {
 			log.Println("Replication stopped")
 			return
 		default:
-			// read the command from the master and execute it on the replica
-			cmdLine, err := resp.DecodeBulkStringsArrayFromReader(reader)
-
-			if err == io.EOF {
+			if err := c.readApplyReplicationCommand(reader); err != nil {
+				if err == io.EOF {
+					return
+				}
+				log.Printf("replication stream: %v", err)
 				return
 			}
-			if err != nil {
-				log.Printf("replication stream read: %v", err)
-				return
-			}
-
-			cmd, err := resp.Decode(cmdLine)
-			if err != nil {
-				log.Printf("replication stream decode: %v", err)
-				return
-			}
-			if c.apply != nil {
-				c.apply(cmd)
-			}
-
-			c.IncrementReplOffset(cmdLine)
 		}
 	}
 }

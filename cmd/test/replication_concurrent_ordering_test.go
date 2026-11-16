@@ -74,7 +74,7 @@ func TestConcurrentBroadcastBacklogMatchesReplica(t *testing.T) {
 	recordWg.Wait()
 
 	received := bytes.Clone(recorded.Bytes())
-	backlog, err := master.Srv.ReadReplicationBacklog(streamStart)
+	backlog, err := master.Srv.ReadReplicationBacklog(master.Srv.MasterReplID(), streamStart)
 	if err != nil {
 		t.Fatalf("ReadReplicationBacklog: %v", err)
 	}

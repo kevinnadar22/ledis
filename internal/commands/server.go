@@ -67,6 +67,10 @@ func (s *Server) ReplOffset() int64 {
 	return s.repl.ReplOffset()
 }
 
-func (s *Server) ReadReplicationBacklog(start int64) ([]byte, error) {
-	return s.repl.ReadFromBacklog(start)
+func (s *Server) MasterReplID() string {
+	return s.repl.MasterReplID()
+}
+
+func (s *Server) ReadReplicationBacklog(replID string, start int64) ([]byte, error) {
+	return s.repl.ReadFromBacklog(replID, start)
 }
