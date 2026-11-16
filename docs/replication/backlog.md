@@ -98,14 +98,14 @@ oldestReplOffset <= streamOffset <= repl_offset
 
 **Fix:** Under **one** `mu.Lock`:
 
-1. `AppendToBacklog(cmd, false)` (caller holds `Lock`)
+1. `appendToBacklogLocked(cmd)`
 2. Enqueue the same command to each replica with a **non-blocking** send:
 
 ```go
 select {
 case client.Queue <- cmd:
 default:
-    DisconnectReplica(conn, false, client) // queue full — close TCP after unlock
+    disconnectReplicaLocked(conn, client) // then close TCP after unlock
 }
 ```
 
@@ -117,7 +117,7 @@ Concurrent broadcasts serialize on that lock, so stream order matches live repli
 
 - Backlog append uses **`Lock`** (writers).
 - `ReadFromBacklog` / `CanServeFromBacklog` use **`RLock`** (readers).
-- Many goroutines can hold **`RLock`** at once; **`RLock` is not re-entrant** on the same goroutine. `ReadFromBacklog` calls `CanServeFromBacklog(offset, false)` while already holding `RLock`.
+- Many goroutines can hold **`RLock`** at once; **`RLock` is not re-entrant** on the same goroutine. `ReadFromBacklog` uses `canServeFromBacklogLocked` while already holding `RLock`.
 
 ---
 
@@ -153,7 +153,7 @@ go test -race ./cmd/test/... -run TestBacklog
 
 Slow replica drop (non-blocking enqueue): `cmd/test/slow_replica_test.go` — `TestSlowReplicaDroppedMasterDoesNotStall` uses a stalled replica TCP client and large `SET`s so the output queue (default 1000) fills and the master drops the replica without stalling writes (`connected_slaves` → 0).
 
-Tests call `HandleBacklog` directly on a coordinator; production path is `BroadcastCommandToReplicas` → `AppendToBacklog`.
+Tests call `HandleBacklog` directly on a coordinator; production path is `BroadcastCommandToReplicas` → `appendToBacklogLocked`.
 
 ---
 

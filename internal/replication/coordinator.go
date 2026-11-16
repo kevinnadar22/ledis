@@ -75,7 +75,7 @@ func New(listenPort int, db *store.Store, apply CommandApplier, replBacklogSize 
 func (c *Coordinator) Stop() {
 	c.mu.Lock()
 	defer c.mu.Unlock()
-	c.StopUpstream(false)
+	c.stopUpstreamLocked()
 }
 
 func (c *Coordinator) ReplOffset() int64 {
@@ -90,12 +90,8 @@ func (c *Coordinator) OldestReplOffset() int64 {
 	return c.repl_backlog.oldestReplOffset
 }
 
-// ReplBacklogHistLen is stream bytes retained: repl_offset - oldestReplOffset.
-func (c *Coordinator) ReplBacklogHistLen(lock bool) int64 {
-	if lock {
-		c.mu.RLock()
-		defer c.mu.RUnlock()
-	}
+// replBacklogHistLenLocked is stream bytes retained: repl_offset - oldestReplOffset; caller must hold c.mu (R or W).
+func (c *Coordinator) replBacklogHistLenLocked() int64 {
 	if c.repl_offset <= c.repl_backlog.oldestReplOffset {
 		return 0
 	}

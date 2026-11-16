@@ -63,7 +63,7 @@ func (c *Coordinator) newReplicationClient(conn net.Conn, defaultPort int) *data
 				_, err := writer.Write([]byte(cmd.RawContent))
 				if err != nil {
 					log.Println("error writing to writer:", err)
-					go c.DisconnectReplica(conn, true, nil)
+					go c.DisconnectReplica(conn)
 					return
 				}
 			case <-r.Ctx.Done():
@@ -81,36 +81,40 @@ func (c *Coordinator) newReplicationClient(conn net.Conn, defaultPort int) *data
 	return r
 }
 
-// GetClient returns the replication client for conn. lock acquires c.mu when true.
-// create registers a new client in pending when absent; if false, returns nil when absent.
-func (c *Coordinator) GetClient(conn net.Conn, defaultPort int, lock, create bool) *datatypes.ReplicationClient {
-	if lock {
-		c.mu.Lock()
-		defer c.mu.Unlock()
-	}
-	if client, ok := c.replicas[conn]; ok {
+func (c *Coordinator) GetClient(conn net.Conn, defaultPort int) *datatypes.ReplicationClient {
+	c.mu.Lock()
+	defer c.mu.Unlock()
+	return c.getClientLocked(conn, defaultPort)
+}
+
+// getClientLocked returns or creates a replication client; caller must hold c.mu.
+func (c *Coordinator) getClientLocked(conn net.Conn, defaultPort int) *datatypes.ReplicationClient {
+	if client := c.lookupClientLocked(conn); client != nil {
 		return client
-	}
-	if client, ok := c.pending[conn]; ok {
-		return client
-	}
-	if !create {
-		return nil
 	}
 	client := c.newReplicationClient(conn, defaultPort)
 	c.pending[conn] = client
 	return client
 }
 
-func (c *Coordinator) HandleBacklog(cmd datatypes.Command) {
-	c.AppendToBacklog(cmd, true)
+// lookupClientLocked returns a client if registered; caller must hold c.mu.
+func (c *Coordinator) lookupClientLocked(conn net.Conn) *datatypes.ReplicationClient {
+	if client, ok := c.replicas[conn]; ok {
+		return client
+	}
+	if client, ok := c.pending[conn]; ok {
+		return client
+	}
+	return nil
 }
 
-func (c *Coordinator) AppendToBacklog(cmd datatypes.Command, lock bool) {
-	if lock {
-		c.mu.Lock()
-		defer c.mu.Unlock()
-	}
+func (c *Coordinator) HandleBacklog(cmd datatypes.Command) {
+	c.mu.Lock()
+	defer c.mu.Unlock()
+	c.appendToBacklogLocked(cmd)
+}
+
+func (c *Coordinator) appendToBacklogLocked(cmd datatypes.Command) {
 	cmdBytes := cmd.ToBytes()
 	backlog := &c.repl_backlog
 
@@ -125,15 +129,17 @@ func (c *Coordinator) AppendToBacklog(cmd datatypes.Command, lock bool) {
 	}
 }
 
-// CanServeFromBacklog checks a replication stream offset (PSYNC offset), not a buf index.
+// canServeFromBacklogLocked checks a replication stream offset (PSYNC offset), not a buf index.
 // offset == repl_offset means caught up (CONTINUE, zero backlog bytes).
-func (c *Coordinator) CanServeFromBacklog(offset int64, lock bool) bool {
-	if lock {
-		c.mu.RLock()
-		defer c.mu.RUnlock()
-	}
-	return offset >= c.repl_backlog.oldestReplOffset &&
-		offset <= c.repl_offset
+func (c *Coordinator) canServeFromBacklogLocked(streamOffset int64) bool {
+	return streamOffset >= c.repl_backlog.oldestReplOffset &&
+		streamOffset <= c.repl_offset
+}
+
+func (c *Coordinator) CanServeFromBacklog(offset int64) bool {
+	c.mu.RLock()
+	defer c.mu.RUnlock()
+	return c.canServeFromBacklogLocked(offset)
 }
 
 // ReadFromBacklog reads stream bytes [startOffset, repl_offset). startOffset is a stream offset.
@@ -141,7 +147,7 @@ func (c *Coordinator) ReadFromBacklog(startOffset int64) ([]byte, error) {
 	c.mu.RLock()
 	defer c.mu.RUnlock()
 
-	if !c.CanServeFromBacklog(startOffset, false) {
+	if !c.canServeFromBacklogLocked(startOffset) {
 		return nil, errors.New("offset is not in backlog")
 	}
 	response := make([]byte, 0, c.repl_offset-startOffset)
@@ -152,27 +158,15 @@ func (c *Coordinator) ReadFromBacklog(startOffset int64) ([]byte, error) {
 	return response, nil
 }
 
-// DisconnectReplica removes a replica from master state. client may be nil (lookup only, no create).
-// lock==false: caller holds c.mu; TCP close is the caller's job after unlock.
-// lock==true: acquires c.mu, updates state, unlocks, then closes TCP (SetLinger(0)).
-// Returns whether the conn was registered and removed.
-func (c *Coordinator) DisconnectReplica(conn net.Conn, lock bool, client *datatypes.ReplicationClient) bool {
-	if lock {
-		c.mu.Lock()
-	}
+// disconnectReplicaLocked drops replica state; caller must hold c.mu. Does not close TCP.
+func (c *Coordinator) disconnectReplicaLocked(conn net.Conn, client *datatypes.ReplicationClient) bool {
 	if conn == nil {
-		if lock {
-			c.mu.Unlock()
-		}
 		return false
 	}
 	if client == nil {
-		client = c.GetClient(conn, 0, false, false)
+		client = c.lookupClientLocked(conn)
 	}
 	if client == nil {
-		if lock {
-			c.mu.Unlock()
-		}
 		return false
 	}
 	addr := conn.RemoteAddr()
@@ -180,29 +174,42 @@ func (c *Coordinator) DisconnectReplica(conn net.Conn, lock bool, client *dataty
 	delete(c.replicas, conn)
 	delete(c.pending, conn)
 	log.Printf("replication: disconnected slow replica %s (output buffer full)", addr)
-
-	if lock {
-		c.mu.Unlock()
-		if tc, ok := conn.(*net.TCPConn); ok {
-			_ = tc.SetLinger(0)
-		}
-		if err := conn.Close(); err != nil {
-			log.Printf("replication: close replica %v: %v", addr, err)
-		}
-	}
 	return true
+}
+
+func (c *Coordinator) closeReplicaTCP(conn net.Conn) {
+	if conn == nil {
+		return
+	}
+	if tc, ok := conn.(*net.TCPConn); ok {
+		_ = tc.SetLinger(0)
+	}
+	addr := conn.RemoteAddr()
+	if err := conn.Close(); err != nil {
+		log.Printf("replication: close replica %v: %v", addr, err)
+	}
+}
+
+// DisconnectReplica acquires c.mu, drops state, unlocks, then closes TCP (do not close under c.mu).
+func (c *Coordinator) DisconnectReplica(conn net.Conn) {
+	c.mu.Lock()
+	removed := c.disconnectReplicaLocked(conn, nil)
+	c.mu.Unlock()
+	if removed {
+		c.closeReplicaTCP(conn)
+	}
 }
 
 func (c *Coordinator) BroadcastCommandToReplicas(cmd datatypes.Command) {
 	c.mu.Lock()
-	c.AppendToBacklog(cmd, false)
+	c.appendToBacklogLocked(cmd)
 
 	var toClose []net.Conn
 	for conn, client := range c.replicas {
 		select {
 		case client.Queue <- cmd:
 		default:
-			if c.DisconnectReplica(conn, false, client) {
+			if c.disconnectReplicaLocked(conn, client) {
 				toClose = append(toClose, conn)
 			}
 		}
@@ -210,12 +217,6 @@ func (c *Coordinator) BroadcastCommandToReplicas(cmd datatypes.Command) {
 	c.mu.Unlock()
 
 	for _, conn := range toClose {
-		if tc, ok := conn.(*net.TCPConn); ok {
-			_ = tc.SetLinger(0)
-		}
-		addr := conn.RemoteAddr()
-		if err := conn.Close(); err != nil {
-			log.Printf("replication: close replica %v: %v", addr, err)
-		}
+		c.closeReplicaTCP(conn)
 	}
 }
