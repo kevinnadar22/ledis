@@ -21,7 +21,6 @@ func (c *Coordinator) stopUpstreamLocked() {
 		c.upstreamCancel = nil
 	}
 	c.upstreamConn = nil
-	c.upstream = datatypes.UpstreamMaster{}
 }
 
 func (c *Coordinator) setUpstreamMaster(masterReplID string, masterReplOffset int64) {

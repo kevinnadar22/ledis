@@ -21,8 +21,10 @@ func (c *Coordinator) PerformPartialSync(conn net.Conn, reader *bufio.Reader) er
 	c.mu.RUnlock()
 
 	if replID == "" {
-		return fmt.Errorf("partial sync: no master repl id")
+		replID = "?"
+		offset = -1
 	}
+
 	if err := requestPSYNC(conn, replID, offset); err != nil {
 		return err
 	}
